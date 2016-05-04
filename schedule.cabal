@@ -1,0 +1,69 @@
+Name: schedule
+Version: 0.0
+Cabal-Version: >= 1.22
+Build-Type: Simple
+License: GPL
+License-File: COPYING
+Copyright: 2016 Ximin Luo
+Author: Ximin Luo
+Maintainer: infinity0@pwned.gg
+Stability: alpha
+Homepage: https://github.com/infinity0/haskell-schedule
+Bug-Reports: https://github.com/infinity0/haskell-schedule/issues
+Synopsis: Schedule sub-computations to run later, in a pure way
+Description:
+  See "Control.Monad.Trans.Schedule" for the main entry point into this library.
+Category: Control, Schedule, Cron, Later, After, Delay, Timer, Timeout
+Tested-With: GHC >=7.10
+
+Source-Repository head
+    Type: git
+    Location: https://github.com/infinity0/haskell-schedule
+
+-- use `cabal haddock --hyperlink-source` to make sure that our hyperlinks to
+-- our example source code are generated correctly.
+Library
+    Default-Language: Haskell2010
+    GHC-Options: -O2 -Wall
+    Build-Depends:
+        base                    >= 4    && < 5
+      , transformers            >= 0.4  && < 0.6
+      , mmorph                  >= 1    && < 1.1
+      -- for Monad.Trans.Schedule.Base
+      , transformers-base       >= 0.4  && < 0.5
+      -- for Monad.Trans.Schedule.IO
+      , async                   >= 2    && < 3
+      -- for Data.Rsv.*
+      , containers              >= 0.5  && < 1
+      , lens                    >= 4    && < 5
+      -- for Control.Clock.System
+      , time                    >= 1.5  && < 2
+      , system-time-monotonic   >= 0.2  && < 1
+    HS-Source-Dirs: src
+    Exposed-Modules:
+        Control.Clock
+      , Control.Clock.System
+      , Control.Monad.Base.Compose
+      , Control.Monad.Trans.Schedule
+      , Control.Monad.Trans.Schedule.Base
+      , Control.Monad.Trans.Schedule.Internal
+      , Control.Monad.Trans.Schedule.IO
+      , Data.Rsv
+      , Data.Rsv.RList
+      , Data.Rsv.RMMap
+      , Data.Rsv.RRelMMap
+    Other-Modules:
+        Control.Monad.Trans.Schedule.Example
+      , Data.Rsv.Example
+      , Data.Rsv.ExampleRecursive
+
+Test-Suite doctests
+    Default-Language: Haskell2010
+    GHC-Options: -O2 -Wall -threaded
+    Build-Depends:
+        base                    >= 4 && <5
+      , schedule
+      , doctest
+    HS-Source-Dirs: test
+    Type: exitcode-stdio-1.0
+    Main-Is: DocTests.hs
