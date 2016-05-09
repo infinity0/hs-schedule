@@ -29,9 +29,9 @@ Library
         base                    >= 4    && < 5
       , transformers            >= 0.4  && < 0.6
       , mmorph                  >= 1    && < 1.1
-      -- for Monad.Trans.Schedule.Base
+      -- for Control.Monad.Trans.Schedule.Base
       , transformers-base       >= 0.4  && < 0.5
-      -- for Monad.Trans.Schedule.IO
+      -- for Control.Monad.Trans.Schedule.IO
       , async                   >= 2    && < 3
       -- for Data.Rsv.*
       , containers              >= 0.5  && < 1
