@@ -49,6 +49,7 @@ like "System.Timeout" where appropriate.
 
 = TODO
 
+- define a proper 'MFunctor' instance for 'ScheduleT'
 - implement a fake clock for testing, that one can inject tick values into
 - define and prove laws for liftClock+liftRT, investigate typeclass instances
 

@@ -54,6 +54,7 @@ Library
       , Data.Rsv.RRelMMap
     Other-Modules:
         Control.Monad.Trans.Schedule.Example
+      , Control.Monad.Trans.Schedule.ExampleMFunctor
       , Data.Rsv.Example
       , Data.Rsv.ExampleRecursive
 

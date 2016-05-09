@@ -26,6 +26,7 @@ module Control.Monad.Trans.Schedule.Internal (
   , defaultLiftClock
   , LiftRT
   , MonadRT(..)
+  , defaultLiftRT
   , getClockNow'
   , runTasks'
   , runScheduleT'
@@ -52,8 +53,15 @@ import qualified Data.Rsv.RRelMMap as RelM
     TODO: There is an 'MFunctor' instance for the underlying type 'ComposeT',
     but that's not what we want here - a hoist must also morph the 'TaskState'.
     So we should probably wrap this in a newtype and define a proper 'MFunctor'
-    instance that isn't just 'hoist' from 'ComposeT'. This will likely be hard,
-    and it's unclear how our 'TaskCancel' handles will be affected...
+    instance that isn't just 'hoist' from 'ComposeT'. However, this is probably
+    impossible with how 'ScheduleT' is currently defined; see
+    <src/Control-Monad-Trans-Schedule-ExampleMFunctor.html Control.Monad.Trans.Schedule.ExampleMFunctor>
+    for details.
+
+    The solution would likely involve adding a 's' type parameter for the state
+    that is independent of 'm'. This would increase complexity; however a
+    'MFunctor' instance is quite important for this monad to be composeable
+    with other monads.
 -}
 type ScheduleT c m = ComposeT
     (ReaderT (Clock c))        -- maybe-impure clock
@@ -164,6 +172,17 @@ type LiftRT c n m = forall a. n a -> ScheduleT c m a
 -- | A monad that can lift inner computations to run tasks in parallel.
 class MonadRT c b m where
     liftRT :: LiftRT c b m
+
+hoist' :: Monad m => (forall a. m a -> n a) -> ScheduleT c m b -> ScheduleT c n b
+hoist' morph m = undefined -- probably impossible, see doc for ScheduleT
+-- if we ever define this, we'd wrap ScheduleT in a newtype and define the following:
+-- instance MFunctor (ScheduleT c) where
+--     hoist = hoist'
+
+-- | Helps to derive new instances of 'MonadRT' from base instances.
+-- Don't use this yet, it's undefined right now.
+defaultLiftRT :: (MonadRT c b m, Monad m, MonadTrans t) => LiftRT c b (t m)
+defaultLiftRT = hoist' lift . liftRT
 
 -- | Get the time from the clock.
 getClockNow' :: Monad m => LiftClock c m -> ScheduleT c m Tick
