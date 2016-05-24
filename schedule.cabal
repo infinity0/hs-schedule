@@ -15,6 +15,7 @@ Description:
   See "Control.Monad.Trans.Schedule" for the main entry point into this library.
 Category: Control, Schedule, Cron, Later, After, Delay, Timer, Timeout
 Tested-With: GHC >=7.10
+Extra-Source-Files: LICENSE.GPL-3
 
 Source-Repository head
     Type: git
@@ -24,7 +25,7 @@ Source-Repository head
 -- our example source code are generated correctly.
 Library
     Default-Language: Haskell2010
-    GHC-Options: -O2 -Wall
+    GHC-Options: -Wall
     Build-Depends:
         base                    >= 4    && < 5
       , transformers            >= 0.4  && < 0.6
