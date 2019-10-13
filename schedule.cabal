@@ -1,10 +1,10 @@
 Name: schedule
-Version: 0.0
-Cabal-Version: >= 1.22
+Version: 0.1
+Cabal-Version: >= 2
 Build-Type: Simple
 License: GPL
 License-File: COPYING
-Copyright: 2016 Ximin Luo
+Copyright: 2016-2019 Ximin Luo
 Author: Ximin Luo
 Maintainer: infinity0@pwned.gg
 Stability: alpha
@@ -12,9 +12,29 @@ Homepage: https://github.com/infinity0/haskell-schedule
 Bug-Reports: https://github.com/infinity0/haskell-schedule/issues
 Synopsis: Schedule sub-computations to run later, in a pure way
 Description:
-  See "Control.Monad.Trans.Schedule" for the main entry point into this library.
+  Pure co-operative scheduled computations.
+  .
+  Co-operative means that we do not interrupt computations that don't expect to
+  be interrupted, such as 3rd-party libraries that have no knowledge of this
+  monad. In other words, we don't throw asynchronous exceptions, and there is
+  no "background executor" that automatically runs these tasks, interleaving
+  them with your main computation in an order that would be hard to predict.
+  .
+  Motivation:
+  .
+  For many secure communications protocols, we want a guarantee of freshness. But
+  impure timeout-based code can be hard to analyse, and can have very complex
+  interactions with the rest of the protocol system. That's where this library
+  comes in, and that's why we made the design choices stated above, such as
+  avoiding of interrupts and requiring explicit user-controlled task execution.
+  .
+  Although motivated by these security goals, we intend this library to be a
+  generally-useful tool, that has the power to replace impure timeout mechanisms
+  like "System.Timeout" where appropriate.
+  .
+  See "Control.Monad.Trans.Schedule" for the main API of this library.
 Category: Control, Schedule, Cron, Later, After, Delay, Timer, Timeout
-Tested-With: GHC >=7.10
+Tested-With: GHC >= 8.6
 Extra-Source-Files: LICENSE.GPL-3
 
 Source-Repository head
@@ -27,45 +47,57 @@ Library
     Default-Language: Haskell2010
     GHC-Options: -Wall
     Build-Depends:
-        base                    >= 4    && < 5
-      , transformers            >= 0.4  && < 0.6
-      , mmorph                  >= 1    && < 1.1
-      -- for Control.Monad.Trans.Schedule.Base
-      , transformers-base       >= 0.4  && < 0.5
-      -- for Control.Monad.Trans.Schedule.IO
-      , async                   >= 2    && < 3
+        base                    >= 4
+      -- for Control.Arrow.*
+      , arrows
+      -- for Control.Monad.*
+      , transformers
       -- for Data.Rsv.*
-      , containers              >= 0.5  && < 1
-      , lens                    >= 4    && < 5
+      , containers
+      , lens
       -- for Control.Clock.System
-      , time                    >= 1.5  && < 2
-      , system-time-monotonic   >= 0.2  && < 1
+      , async
+      , time                    >= 1.5
+      , system-time-monotonic   >= 0.2
     HS-Source-Dirs: src
     Exposed-Modules:
         Control.Clock
       , Control.Clock.System
-      , Control.Monad.Base.Compose
+      , Control.Arrow.Transformer.Schedule
       , Control.Monad.Trans.Schedule
-      , Control.Monad.Trans.Schedule.Base
-      , Control.Monad.Trans.Schedule.Internal
-      , Control.Monad.Trans.Schedule.IO
       , Data.Rsv
+      , Data.Rsv.Common
       , Data.Rsv.RList
       , Data.Rsv.RMMap
-      , Data.Rsv.RRelMMap
-    Other-Modules:
-        Control.Monad.Trans.Schedule.Example
-      , Control.Monad.Trans.Schedule.ExampleMFunctor
-      , Data.Rsv.Example
-      , Data.Rsv.ExampleRecursive
+      , Data.Schedule
+      , Data.Schedule.Internal
 
 Test-Suite doctests
     Default-Language: Haskell2010
     GHC-Options: -O2 -Wall -threaded
     Build-Depends:
-        base                    >= 4 && <5
-      , schedule
+        base
       , doctest
+      , schedule
     HS-Source-Dirs: test
     Type: exitcode-stdio-1.0
     Main-Is: DocTests.hs
+
+Test-Suite unit
+    Default-Language: Haskell2010
+    GHC-Options: -O2 -Wall -threaded
+    Build-Depends:
+        base
+      , tasty
+      , tasty-quickcheck
+      , tasty-hunit
+      , checkers
+      , transformers
+      , schedule
+    HS-Source-Dirs: test
+    Type: exitcode-stdio-1.0
+    Main-Is: UnitTests.hs
+    Other-Modules:
+        Control.Monad.Trans.ScheduleTest
+      , Data.Rsv.Example
+      , Data.Rsv.ExampleRecursive

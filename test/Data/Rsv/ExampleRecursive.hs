@@ -2,7 +2,12 @@
 
 module Data.Rsv.ExampleRecursive where
 
-import Data.Rsv.RList (RList, Delete, insert, toList)
+import           Data.Rsv.RList                 ( Delete
+                                                , RList
+                                                , insert
+                                                , toList
+                                                )
+
 
 -- | Alias for copy+paste convenience, in case anyone wants to adapt the below
 -- to other data structures
@@ -24,9 +29,9 @@ type DeleteRec a = Delete (RecRef a)
 -- | Insert a self-deleting value
 insert_ :: Rec a -> ContainerRec a -> (DeleteRec a, ContainerRec a)
 insert_ v m =
-    let rec = RecC v del -- takes advantage of laziness
-        (del, m2) = insert rec m in
-        (del, m2)
+  let rec       = RecC v del -- takes advantage of laziness
+      (del, m2) = insert rec m
+  in  (del, m2)
 
 -- | Insert a regular non-self-deleting value
 insert' :: a -> ContainerRec a -> (DeleteRec a, ContainerRec a)

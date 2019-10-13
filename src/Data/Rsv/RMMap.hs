@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 {-| See "Data.Rsv" for an overview of what "reservation" data structures are.
@@ -7,102 +8,87 @@ many independent inserts may be performed on the same key.
 
 -}
 
-module Data.Rsv.RMMap (
-    RMMap
+module Data.Rsv.RMMap
+  ( RMMap(..)
+  , handles_
+  , content_
+  , Delete
   , empty
   -- * Read operations
   , isEmpty
   , (!)
   -- * Write operations
-  , insert
-  , Delete
-  , deleteKey
-  -- * Write operations in 'StateT'
-  , sInsert
-  , SDelete
-  , sDeleteKey
-  ) where
+  , enqueue
+  , unqueue
+  , dequeue
+  )
+where
 
 -- external
-import Control.Arrow ((***), first)
-import Control.Lens (makeLensesFor, (&), (%~), (%%~), at)
-import Control.Monad.Trans.State.Strict (StateT, state, modify)
-import Data.Maybe (fromMaybe)
+import           Control.Lens                   ( Iso
+                                                , at
+                                                , iso
+                                                , makeLensesFor
+                                                , (%%~)
+                                                , (%~)
+                                                , (&)
+                                                )
+import           Data.Bifunctor                 ( first )
+import           GHC.Generics                   ( Generic )
 
--- ours
-import qualified Data.Map.Strict as M
-import Data.Rsv.RList (RList)
-import qualified Data.Rsv.RList as RsvL
+import qualified Data.Map.Strict               as M
+import           Data.Sequence                  ( Seq(..) )
 
+-- internal
+import           Data.Rsv.Common
+
+
+type Entries a = Seq (RHandle, a)
 
 data RMMap k a = RMMap {
-    subMap :: M.Map k (RList a)
-}
-makeLensesFor ((\x -> (x, x ++ "_")) <$> ["subMap"]) ''RMMap
+  handles :: !RHandles,
+  content :: !(M.Map k (Entries a))
+} deriving (Eq, Show, Generic)
+makeLensesFor ((\x -> (x, x ++ "_")) <$> ["handles", "content"]) ''RMMap
 
--- | An empty 'RMMap'.
+toPair
+  :: Iso
+       (RMMap k0 a0)
+       (RMMap k1 a1)
+       (RHandles, M.Map k0 (Entries a0))
+       (RHandles, M.Map k1 (Entries a1))
+toPair = iso (\(RMMap x y) -> (x, y)) (uncurry RMMap)
+
 empty :: RMMap k a
-empty = RMMap { subMap = M.empty }
+empty = RMMap { handles = newHandles, content = M.empty }
 
 isEmpty :: RMMap k a -> Bool
-isEmpty sm = M.null m || all RsvL.isEmpty m where m = subMap sm
+isEmpty sm = M.null m || all null m where m = content sm
 
-(!) :: Ord k => RMMap k a -> k -> [a]
-m ! k = case M.lookup k $ subMap m of
-    Just l -> RsvL.toList l
-    Nothing -> []
+(!) :: Ord k => RMMap k a -> k -> Seq a
+m ! k = case M.lookup k $ content m of
+  Just l  -> snd <$> l
+  Nothing -> mempty
 
--- | A map-transition that removes and retrieves the earlier-added item.
--- If the item was already removed, 'Nothing' is returned instead.
-type Delete k a = RMMap k a -> (Maybe a, RMMap k a)
+data Delete k a = Delete !k !RHandle
+  deriving (Eq, Show, Generic)
 
--- | Add an item to the list, returning a handle to remove it with.
+-- | Append an item on a key, returning a handle to remove it with.
 -- The same item may be added twice, in which case it will occupy multiple
 -- positions in the map, and the handles distinguish these occurences.
-insert :: Ord k => k -> a -> RMMap k a -> (Delete k a, RMMap k a)
-insert k v m =
-    m & subMap_ . at k %%~ listInsert k v where
-    -- The above is a bit of lens magic, 'm & at k %%~ f v' is basically what
-    -- '(fst . f, Map.alter (snd . f) k m)' intuitively looks like it's supposed
-    -- to do, but of course can't work in that form because we need to make the
-    -- result of f escape Map.alter. The lens-based solution should be quicker
-    -- than traversing the map twice via the ordinary Map functions.
-    listInsert :: Ord k => k -> a -> Maybe (RList a) -> (Delete k a, Maybe (RList a))
-    listInsert k' v' slm = mapDelete k' *** Just $ RsvL.insert v' baseSl where
-        baseSl = fromMaybe RsvL.empty slm
+enqueue :: Ord k => (k, a) -> RMMap k a -> (Delete k a, RMMap k a)
+enqueue i@(k, _) m = m & toPair %%~ withHandle enq i & first (Delete k)
+ where
+  enq
+    :: Ord k => (RHandle, (k, a)) -> M.Map k (Entries a) -> M.Map k (Entries a)
+  enq (h', (k', v')) m' = m' & at k' %~ sEnqueue (h', v')
 
-mapDelete :: Ord k => k -> RsvL.Delete a -> Delete k a
-mapDelete k listDelete m =
-    m & subMap_ . at k %%~ tweak listDelete where
-    tweak :: RsvL.Delete a -> Maybe (RList a) -> (Maybe a, Maybe (RList a))
-    tweak listDelete' slm = maybeDelete <$> listDelete' baseSl where
-        baseSl = fromMaybe RsvL.empty slm
+-- | Delete an item corresponding to a given handle.
+-- If the item was already removed, 'Nothing' is returned instead.
+unqueue :: Ord k => Delete k a -> RMMap k a -> (Maybe a, RMMap k a)
+unqueue (Delete k idx) m = m & content_ . at k %%~ sUnqueue idx
 
-maybeDelete :: RList a -> Maybe (RList a)
-maybeDelete = Just
---maybeDelete sl = if SL.isEmpty sl then Nothing else Just sl
--- TODO: we cannot do this yet, since we might (for a given key k):
---   1. remove all its items (A)
---   2. add another item b
---   3. call the delete-handle on a previous item from A that was given the
---      same internal sublist index as b
--- To avoid this we currently keep the sublists around, which is not ideal. The
--- ideal fix is to either:
---   a. make the sublist indexes not Ints but some truly unique object, or
---   b. track the unique indexes in *this* structure
--- Both are too complex to bother with at this time; we'll revisit this if
--- people run into memory issues with our lazy cleanup.
-
-deleteKey :: Ord k => k -> RMMap k a -> RMMap k a
-deleteKey k m = m & subMap_ %~ M.delete k
-
--- | Same as 'Delete' except in the 'StateT' monad
-type SDelete k a m = StateT (RMMap k a) m (Maybe a)
-
--- | Same as 'insert' except in the 'StateT' monad
-sInsert :: (Ord k, Monad m) => k -> a -> StateT (RMMap k a) m (SDelete k a m)
-sInsert k e = state $ first state . insert k e
-
--- | Same as 'deleteKey' except in the 'StateT' monad
-sDeleteKey :: (Ord k, Monad m) => k -> StateT (RMMap k a) m ()
-sDeleteKey = modify . deleteKey
+-- | Remove an item from a key, from the front. Return Nothing if key is empty.
+dequeue :: Ord k => k -> RMMap k a -> (Maybe (Delete k a, a), RMMap k a)
+dequeue k m =
+  m & content_ . at k %%~ sDequeue & first (fmap (first (Delete k)))

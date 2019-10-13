@@ -1,86 +1,103 @@
-{-| Monad transformer for co-operative scheduled computations, with a clean
-pure-impure separation and minimal impure code.
+{-# LANGUAGE BlockArguments             #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE LambdaCase                 #-}
 
-Co-operative means that we do not interrupt computations that don't expect to
-be interrupted, such as 3rd-party libraries that have no knowledge of this
-monad. In other words, we don't throw asynchronous exceptions, and there is
-no "background executor" that automatically runs these tasks, interleaving
-them with your main computation in an order that would be hard to predict.
-
-What this means in practise is that, in addition to /scheduling/ tasks to be
-run in the future via 'after' and friends, you must also explicitly specify
-when these tasks might be /executed relative/ to your main computation. For
-that, you have these options:
-
-- bind 'runTasks' in your main computation, or
-- use a 'LiftRT' to transform a particular (blocking) action to also run tasks
-  in parallel with that action. Currently we only support doing this for:
-
-    - @IO@ actions running under @IO@ clocks, using 'ioLiftRT'
-
-    but hopefully we'll support others in the future, such as for "Pipes" that
-    are blocked waiting for input. (This will likely be non-trivial, and my
-    knowledge of complex Haskell control-flow structures is quite basic, so
-    any help would be appreciated.)
-
-For some concrete examples, see
-<src/Control-Monad-Trans-Schedule-Example.html Control.Monad.Trans.Schedule.Example>
-as well as our unit tests.
-
-A consequence of our model, is that we make no guarantees about /precisely/
-when tasks are run in terms of absolute time, and our API doesn't enable you
-to express this. Instead, what you express is the /relative order/ in which
-tasks should be run, which /is/ guaranteed; as well as an approximate mapping
-from this onto real absolute time, which is honoured on a best-effort basis.
-We believe this is much easier to reason about (and therefore safer) than the
-opposite trade-off, in the vast majority of use-cases.
-
-= Motivation
-
-For many secure communications protocols, we want a guarantee of freshness. But
-impure timeout-based code can be hard to analyse, and can have very complex
-interactions with the rest of the protocol system. That's where this library
-comes in, and that's why we made the design choices stated above, such as
-avoiding of interrupts and requiring explicit user-controlled task execution.
-
-Although motivated by these security goals, we intend this library to be a
-generally-useful tool, that has the power to replace impure timeout mechanisms
-like "System.Timeout" where appropriate.
-
-= TODO
-
-- define a proper 'MFunctor' instance for 'ScheduleT'
-- implement a fake clock for testing, that one can inject tick values into
-- define and prove laws for liftClock+liftRT, investigate typeclass instances
-
--}
-
-module Control.Monad.Trans.Schedule (
-    Tick
-  , Clock(..)
-  -- * Pure scheduled computation
-  , TaskState
-  , ScheduleT
-  , after
-  , renew
-  , TaskCancel
-  -- * Generic impure execution
-  , LiftClock
-  , getClockNow'
-  , runTasks'
-  , runScheduleT'
-  , LiftRT
-  -- * Impure execution with 'Control.Monad.Base.MonadBase'
-  , baseLiftClock
-  , getClockNow
-  , runTasks
+module Control.Monad.Trans.Schedule
+  ( ScheduleT(..)
   , runScheduleT
-  -- * Impure execution with 'Control.Monad.IO.Class.MonadIO'
-  , ioLiftClock
-  , ioLiftRT'
-  , ioLiftRT
-  ) where
+  , tickNow
+  , tickPrev
+  , ticksToIdle
+  , schedule
+  , schedule'
+  , doWhileAccum
+  , runTick
+  , runTicksTo
+  , getInput
+  , mkOutput
+  , module Control.Monad.Trans.Class
+  , module Data.Schedule
+  )
+where
 
-import Control.Monad.Trans.Schedule.Internal
-import Control.Monad.Trans.Schedule.Base
-import Control.Monad.Trans.Schedule.IO
+-- external
+import           Control.Applicative            ( Alternative )
+import           Control.Monad                  ( MonadPlus )
+import           Control.Monad.Trans.Class      ( MonadTrans(lift) )
+import           Control.Monad.Trans.State.Strict
+                                                ( StateT(runStateT)
+                                                , get
+                                                , modify
+                                                , state
+                                                )
+import           Data.Either                    ( either )
+import           Data.Maybe                     ( fromMaybe )
+
+-- internal
+import           Data.Schedule
+import           Data.Schedule.Internal
+
+
+{-| A computation that can schedule sub-computations for later. -}
+newtype ScheduleT t m a = ScheduleT { unScheduleT :: StateT (Schedule t) m a }
+  deriving (Functor, Applicative, Alternative, Monad, MonadPlus, MonadTrans)
+
+runScheduleT :: ScheduleT t m a -> Schedule t -> m (a, Schedule t)
+runScheduleT = runStateT . unScheduleT
+
+-- | Get the current tick, whose tasks have not all run yet.
+tickNow :: Monad m => ScheduleT t m Tick
+tickNow = ScheduleT (now <$> get)
+
+-- | Get the previous tick, whose tasks have all already run.
+tickPrev :: Monad m => ScheduleT t m Tick
+tickPrev = pred <$> tickNow
+
+ticksToIdle :: Monad m => ScheduleT t m (Maybe TickDelta)
+ticksToIdle = ScheduleT (ticksUntilNextTask <$> get)
+
+-- | Run a schedule action like 'after', 'cancel', or 'renew'.
+schedule :: Monad m => (Schedule t -> (a, Schedule t)) -> ScheduleT t m a
+schedule = ScheduleT . state
+
+-- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
+schedule' :: Monad m => (Schedule t -> Schedule t) -> ScheduleT t m ()
+schedule' = ScheduleT . modify
+
+doWhileAccum :: (Monad m, Monoid a) => m (Maybe a) -> m a
+doWhileAccum act = go mempty
+ where
+  go accum = act >>= \case
+    Just r  -> go (accum <> r)
+    Nothing -> pure accum
+
+runTick :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> ScheduleT t m a
+runTick runTask = doWhileAccum $ do
+  schedule popOrTick >>= maybe
+    (pure Nothing)
+    \(c, t) -> do
+      schedule' $ acquireLiveTask c
+      r <- runTask t -- TODO: catch Haskell exceptions here
+      schedule' $ releaseLiveTask c
+      pure $ Just r
+
+runTicksTo
+  :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> Tick -> ScheduleT t m a
+runTicksTo runTask tick = doWhileAccum $ do
+  tick' <- tickNow
+  if tick' >= tick then pure Nothing else Just <$> runTick runTask
+
+getInput
+  :: (Monad m)
+  => (TickDelta -> m (Either Tick i))
+  -> ScheduleT t m (Either Tick i)
+getInput getTimedInput = do
+  d <- ticksToIdle
+  lift $ getTimedInput (fromMaybe maxBound d)
+
+mkOutput
+  :: (Monad m, Monoid a)
+  => (t -> ScheduleT t m a)
+  -> (i -> ScheduleT t m a)
+  -> (Either Tick i -> ScheduleT t m a)
+mkOutput runTask runInput = runTicksTo runTask `either` runInput

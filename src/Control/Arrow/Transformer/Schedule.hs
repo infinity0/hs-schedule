@@ -1,0 +1,132 @@
+{-# LANGUAGE Arrows                     #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE MultiParamTypeClasses      #-}
+{-# LANGUAGE TupleSections              #-}
+
+module Control.Arrow.Transformer.Schedule
+  ( ScheduleArr(..)
+  , runScheduleArr
+  , tickNow
+  , tickPrev
+  , ticksToIdle
+  , schedule
+  , schedule'
+  , doWhileAccum
+  , runTick
+  , runTicksTo
+  , getInput
+  , mkOutput
+  , module Control.Arrow.Transformer
+  , module Data.Schedule
+  )
+where
+
+-- external
+import           Control.Arrow                  ( Arrow(..)
+                                                , ArrowApply(app)
+                                                , ArrowChoice((|||))
+                                                , ArrowLoop
+                                                , ArrowPlus
+                                                , ArrowZero
+                                                , returnA
+                                                )
+import           Control.Arrow.Operations       ( ArrowState(fetch) )
+import           Control.Arrow.Transformer      ( ArrowTransformer(lift) )
+import           Control.Arrow.Transformer.State
+                                                ( StateArrow(StateArrow)
+                                                , runState
+                                                )
+import           Control.Category               ( Category
+                                                , (<<<)
+                                                , (>>>)
+                                                )
+import           Data.Maybe                     ( fromMaybe )
+
+-- internal
+import           Data.Schedule
+import           Data.Schedule.Internal
+
+
+{-| A computation that can schedule sub-computations for later. -}
+newtype ScheduleArr t a i o = ScheduleArr { unScheduleArr :: StateArrow (Schedule t) a i o }
+  deriving (Category, Arrow, ArrowZero, ArrowPlus, ArrowChoice, ArrowLoop)
+
+instance ArrowApply a => ArrowApply (ScheduleArr t a) where
+  app = ScheduleArr
+    (StateArrow
+      (arr (\((ScheduleArr (StateArrow f), x), s) -> (f, (x, s))) >>> app)
+    )
+
+instance Arrow a => ArrowTransformer (ScheduleArr t) a where
+  lift f = ScheduleArr (StateArrow (first f))
+
+runScheduleArr
+  :: Arrow a => ScheduleArr t a i o -> a (i, Schedule t) (o, Schedule t)
+runScheduleArr = runState . unScheduleArr
+
+-- | Get the current tick, whose tasks have not all run yet.
+tickNow :: Arrow a => ScheduleArr t a i Tick
+tickNow = ScheduleArr fetch >>> arr now
+
+-- | Get the previous tick, whose tasks have all already run.
+tickPrev :: Arrow a => ScheduleArr t a i Tick
+tickPrev = tickNow >>> arr pred
+
+ticksToIdle :: Arrow a => ScheduleArr t a i (Maybe TickDelta)
+ticksToIdle = ScheduleArr fetch >>> arr ticksUntilNextTask
+
+state :: Arrow a => ((i, Schedule t) -> (o, Schedule t)) -> ScheduleArr t a i o
+state = ScheduleArr . StateArrow . arr
+
+-- | Run a schedule action like 'after', 'cancel', or 'renew'.
+schedule
+  :: Arrow a => (i -> Schedule t -> (o, Schedule t)) -> ScheduleArr t a i o
+schedule = state . uncurry
+
+-- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
+schedule' :: Arrow a => (i -> Schedule t -> Schedule t) -> ScheduleArr t a i ()
+schedule' = state . (((), ) .) . uncurry
+
+doWhileAccum :: (ArrowChoice a, Monoid o) => a i (Maybe o) -> a i o
+doWhileAccum act = arr (, mempty) >>> go
+ where
+  go = proc (i, rr) -> do
+    r' <- act -< i
+    case r' of
+      Nothing -> returnA -< rr
+      Just r  -> go -< (i, rr <> r)
+
+runTick
+  :: (ArrowChoice a, Monoid o) => ScheduleArr t a t o -> ScheduleArr t a i o
+runTick runTask = doWhileAccum $ proc i -> do
+  r' <- schedule (const popOrTick) -< i
+  case r' of
+    Nothing     -> returnA -< Nothing
+    Just (c, t) -> do
+      () <- schedule' acquireLiveTask -< c
+      r  <- runTask -< t
+      () <- schedule' releaseLiveTask -< c
+      returnA -< Just r
+
+runTicksTo
+  :: (ArrowChoice a, Monoid o) => ScheduleArr t a t o -> ScheduleArr t a Tick o
+runTicksTo runTask = doWhileAccum $ proc tick -> do
+  tick' <- tickNow -< ()
+  if tick' >= tick
+    then returnA -< Nothing
+    else arr Just <<< runTick runTask -< ()
+
+getInput
+  :: (Arrow a)
+  => a TickDelta (Either Tick i)
+  -> ScheduleArr t a i' (Either Tick i)
+getInput getTimedInput =
+  ticksToIdle >>> arr (fromMaybe maxBound) >>> lift getTimedInput
+
+mkOutput
+  :: (ArrowChoice a, Monoid o)
+  => (ScheduleArr t a t o)
+  -> (ScheduleArr t a i o)
+  -> (ScheduleArr t a (Either Tick i) o)
+mkOutput runTask runInput = runTicksTo runTask ||| runInput
