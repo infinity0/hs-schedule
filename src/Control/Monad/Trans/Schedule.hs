@@ -23,6 +23,7 @@ where
 -- external
 import           Control.Applicative            ( Alternative )
 import           Control.Monad                  ( MonadPlus )
+import           Control.Monad.Extra            ( whenMaybe )
 import           Control.Monad.Trans.Class      ( MonadTrans(lift) )
 import           Control.Monad.Trans.State.Strict
                                                 ( StateT(runStateT)
@@ -73,19 +74,17 @@ doWhileAccum act = go mempty
 
 runTick :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> ScheduleT t m a
 runTick runTask = doWhileAccum $ do
-  schedule popOrTick >>= maybe
-    (pure Nothing)
-    \(c, t) -> do
-      schedule' $ acquireLiveTask c
-      r <- runTask t -- TODO: catch Haskell exceptions here
-      schedule' $ releaseLiveTask c
-      pure $ Just r
+  schedule popOrTick >>= maybe (pure Nothing) \(c, t) -> do
+    schedule' $ acquireLiveTask c
+    r <- runTask t -- TODO: catch Haskell exceptions here
+    schedule' $ releaseLiveTask c
+    pure $ Just r
 
 runTicksTo
   :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> Tick -> ScheduleT t m a
 runTicksTo runTask tick = doWhileAccum $ do
   tick' <- tickNow
-  if tick' >= tick then pure Nothing else Just <$> runTick runTask
+  whenMaybe (tick' < tick) $ runTick runTask
 
 getInput
   :: (Monad m)

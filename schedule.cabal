@@ -48,10 +48,13 @@ Library
     GHC-Options: -Wall
     Build-Depends:
         base                    >= 4
+      , extra
       -- for Control.Arrow.*
       , arrows
-      -- for Control.Monad.*
+      -- for Control.Monad.Trans.*
       , transformers
+      -- for Control.Monad.Primitive.*
+      , primitive
       -- for Data.Rsv.*
       , containers
       , lens
@@ -65,6 +68,8 @@ Library
       , Control.Clock.System
       , Control.Arrow.Transformer.Schedule
       , Control.Monad.Trans.Schedule
+      , Control.Monad.Primitive.Schedule
+      , Control.Monad.Primitive.Extra
       , Data.Rsv
       , Data.Rsv.Common
       , Data.Rsv.RList
