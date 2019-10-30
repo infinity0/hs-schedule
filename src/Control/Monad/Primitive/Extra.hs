@@ -1,4 +1,4 @@
--- TODO: submit this to Control.Monad.Primitive
+-- TODO: export to upstream primitive
 
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}

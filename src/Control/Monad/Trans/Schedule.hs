@@ -1,6 +1,5 @@
 {-# LANGUAGE BlockArguments             #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
 
 module Control.Monad.Trans.Schedule
   ( ScheduleT(..)
@@ -10,7 +9,6 @@ module Control.Monad.Trans.Schedule
   , ticksToIdle
   , schedule
   , schedule'
-  , doWhileAccum
   , runTick
   , runTicksTo
   , getInput
@@ -25,6 +23,7 @@ import           Control.Applicative            ( Alternative )
 import           Control.Monad                  ( MonadPlus )
 import           Control.Monad.Extra            ( whenMaybe )
 import           Control.Monad.Trans.Class      ( MonadTrans(lift) )
+import           Control.Monad.Trans.Maybe      ( MaybeT(MaybeT, runMaybeT) )
 import           Control.Monad.Trans.State.Strict
                                                 ( StateT(runStateT)
                                                 , get
@@ -65,24 +64,17 @@ schedule = ScheduleT . state
 schedule' :: Monad m => (Schedule t -> Schedule t) -> ScheduleT t m ()
 schedule' = ScheduleT . modify
 
-doWhileAccum :: (Monad m, Monoid a) => m (Maybe a) -> m a
-doWhileAccum act = go mempty
- where
-  go accum = act >>= \case
-    Just r  -> go (accum <> r)
-    Nothing -> pure accum
-
 runTick :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> ScheduleT t m a
-runTick runTask = doWhileAccum $ do
-  schedule popOrTick >>= maybe (pure Nothing) \(c, t) -> do
+runTick runTask = whileJustM $ runMaybeT $ do
+  MaybeT (schedule popOrTick) >>= \(c, t) -> lift $ do
     schedule' $ acquireLiveTask c
     r <- runTask t -- TODO: catch Haskell exceptions here
     schedule' $ releaseLiveTask c
-    pure $ Just r
+    pure r
 
 runTicksTo
   :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> Tick -> ScheduleT t m a
-runTicksTo runTask tick = doWhileAccum $ do
+runTicksTo runTask tick = whileJustM $ do
   tick' <- tickNow
   whenMaybe (tick' < tick) $ runTick runTask
 

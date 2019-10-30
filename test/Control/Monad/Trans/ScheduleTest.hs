@@ -4,18 +4,22 @@
 
 module Control.Monad.Trans.ScheduleTest where
 
+-- external
 import           Test.Tasty              hiding ( after )
 import           Test.Tasty.HUnit
 
 import           Control.Monad                  ( void
                                                 , when
                                                 )
-import           Data.Function                  ( (&) )
+import           Control.Monad.Trans.Class      ( MonadTrans(lift) )
+import           Control.Monad.Trans.Maybe      ( MaybeT(MaybeT, runMaybeT) )
 
+-- internal
 import           Control.Clock.System
 import           Control.Monad.Trans.Schedule
 import           Data.Rsv.RMMap
 import           Data.Schedule.Internal
+
 
 tests :: TestTree
 tests = testGroup "Control.Monad.Trans.ScheduleTest" [testCase "smoke" smoke]
@@ -26,11 +30,10 @@ smoke = do
   let top = 17
   (r, s) <- flip runScheduleT newSchedule $ do
     _ <- schedule $ after 1 top
-    doWhileAccum $ do
-      ticksToIdle >>= maybe (pure Nothing) \d -> do
+    whileJustM $ runMaybeT $ do
+      MaybeT ticksToIdle >>= \d -> lift $ do
         lift (timerFromIOClock clock voidInput d)
           >>= mkOutput countdown undefined
-          &   fmap Just
   assertEqual "results" [top, top - 1 .. 0] r
   assertBool "schedule.now" $ now s > top
   assertEqual "schedule.tasks" (empty { handles = handles (tasks s) }) (tasks s)

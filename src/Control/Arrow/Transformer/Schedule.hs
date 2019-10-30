@@ -12,7 +12,6 @@ module Control.Arrow.Transformer.Schedule
   , ticksToIdle
   , schedule
   , schedule'
-  , doWhileAccum
   , runTick
   , runTicksTo
   , getInput
@@ -88,8 +87,9 @@ schedule = state . uncurry
 schedule' :: Arrow a => (i -> Schedule t -> Schedule t) -> ScheduleArr t a i ()
 schedule' = state . (((), ) .) . uncurry
 
-doWhileAccum :: (ArrowChoice a, Monoid o) => a i (Maybe o) -> a i o
-doWhileAccum act = arr (, mempty) >>> go
+-- TODO: export to upstream arrows or extra
+whileJustA :: (ArrowChoice a, Monoid o) => a i (Maybe o) -> a i o
+whileJustA act = arr (, mempty) >>> go
  where
   go = proc (i, rr) -> do
     r' <- act -< i
@@ -99,19 +99,19 @@ doWhileAccum act = arr (, mempty) >>> go
 
 runTick
   :: (ArrowChoice a, Monoid o) => ScheduleArr t a t o -> ScheduleArr t a i o
-runTick runTask = doWhileAccum $ proc i -> do
+runTick runTask = whileJustA $ proc i -> do
   r' <- schedule (const popOrTick) -< i
   case r' of
     Nothing     -> returnA -< Nothing
     Just (c, t) -> do
       () <- schedule' acquireLiveTask -< c
-      r  <- runTask -< t
+      r  <- runTask -< t -- TODO: catch Haskell exceptions here
       () <- schedule' releaseLiveTask -< c
       returnA -< Just r
 
 runTicksTo
   :: (ArrowChoice a, Monoid o) => ScheduleArr t a t o -> ScheduleArr t a Tick o
-runTicksTo runTask = doWhileAccum $ proc tick -> do
+runTicksTo runTask = whileJustA $ proc tick -> do
   tick' <- tickNow -< ()
   if tick' >= tick
     then returnA -< Nothing
