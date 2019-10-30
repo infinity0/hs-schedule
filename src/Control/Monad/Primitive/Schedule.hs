@@ -43,16 +43,11 @@ ticksToIdle :: PrimMonad m => PrimST m (Schedule t) -> m (Maybe TickDelta)
 ticksToIdle sched = ticksUntilNextTask <$> readPrimST sched
 
 -- | Run a schedule action like 'after', 'cancel', or 'renew'.
-schedule
-  :: PrimMonad m
-  => PrimST m (Schedule t)
-  -> (Schedule t -> (a, Schedule t))
-  -> m a
+schedule :: PrimST m (Schedule t) -> (Schedule t -> (a, Schedule t)) -> m a
 schedule sched = statePrimST sched
 
 -- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
-schedule'
-  :: PrimMonad m => PrimST m (Schedule t) -> (Schedule t -> Schedule t) -> m ()
+schedule' :: PrimST m (Schedule t) -> (Schedule t -> Schedule t) -> m ()
 schedule' sched = modifyPrimST sched
 
 runTick :: (PrimMonad m, Monoid a) => PrimST m (Schedule t) -> (t -> m a) -> m a
