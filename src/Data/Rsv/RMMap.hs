@@ -25,19 +25,12 @@ module Data.Rsv.RMMap
 where
 
 -- external
-import           Control.Lens                   ( Iso
-                                                , at
-                                                , iso
-                                                , makeLensesFor
-                                                , (%%~)
-                                                , (%~)
-                                                , (&)
-                                                )
-import           Data.Bifunctor                 ( first )
-import           GHC.Generics                   ( Generic )
+import           Control.Lens    (Iso, at, iso, makeLensesFor, (%%~), (%~), (&))
+import           Data.Bifunctor  (first)
+import           GHC.Generics    (Generic)
 
-import qualified Data.Map.Strict               as M
-import           Data.Sequence                  ( Seq(..) )
+import qualified Data.Map.Strict as M
+import           Data.Sequence   (Seq (..))
 
 -- internal
 import           Data.Rsv.Common

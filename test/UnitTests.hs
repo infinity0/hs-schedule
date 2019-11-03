@@ -1,7 +1,6 @@
 import           Test.Tasty
 
-import           Control.Monad.Trans.ScheduleTest
-                                                ( tests )
+import           Control.Monad.Trans.ScheduleTest (tests)
 
 main :: IO ()
 main = do

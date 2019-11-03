@@ -17,19 +17,15 @@ module Control.Monad.Trans.Schedule
 where
 
 -- external
-import           Control.Applicative            ( Alternative )
-import           Control.Monad                  ( MonadPlus )
-import           Control.Monad.Extra            ( whenMaybe )
-import           Control.Monad.Trans.Class      ( MonadTrans(lift) )
-import           Control.Monad.Trans.Maybe      ( MaybeT(MaybeT, runMaybeT) )
-import           Control.Monad.Trans.State.Strict
-                                                ( StateT(runStateT)
-                                                , get
-                                                , modify
-                                                , state
-                                                )
-import           Data.Either                    ( either )
-import           Data.Maybe                     ( fromMaybe )
+import           Control.Applicative              (Alternative)
+import           Control.Monad                    (MonadPlus)
+import           Control.Monad.Extra              (whenMaybe)
+import           Control.Monad.Trans.Class        (MonadTrans (lift))
+import           Control.Monad.Trans.Maybe        (MaybeT (MaybeT, runMaybeT))
+import           Control.Monad.Trans.State.Strict (StateT (runStateT), get,
+                                                   modify, state)
+import           Data.Either                      (either)
+import           Data.Maybe                       (fromMaybe)
 
 -- internal
 import           Data.Schedule

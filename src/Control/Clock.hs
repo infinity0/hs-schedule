@@ -12,9 +12,7 @@ module Control.Clock
 where
 
 -- internal
-import           Data.Schedule                  ( Tick
-                                                , TickDelta
-                                                )
+import           Data.Schedule (Tick, TickDelta)
 
 {-| A maybe-impure supplier of time, to a pure scheduled computation.
 

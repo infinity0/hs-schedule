@@ -23,14 +23,9 @@ module Data.Rsv.RList
 where
 
 -- external
-import           Control.Lens                   ( Iso
-                                                , iso
-                                                , makeLensesFor
-                                                , (%%~)
-                                                , (&)
-                                                )
-import           Data.Bifunctor                 ( first )
-import           GHC.Generics                   ( Generic )
+import           Control.Lens    (Iso, iso, makeLensesFor, (%%~), (&))
+import           Data.Bifunctor  (first)
+import           GHC.Generics    (Generic)
 
 -- internal
 import           Data.Rsv.Common

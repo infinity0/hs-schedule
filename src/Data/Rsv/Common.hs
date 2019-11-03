@@ -17,14 +17,12 @@ module Data.Rsv.Common
 where
 
 -- external
-import           Data.Maybe                     ( fromMaybe )
-import           Data.Word                      ( Word64 )
-import           GHC.Generics                   ( Generic )
+import           Data.Maybe             (fromMaybe)
+import           Data.Word              (Word64)
+import           GHC.Generics           (Generic)
 
-import           Data.Sequence                  ( Seq(..)
-                                                , (|>)
-                                                )
-import qualified Data.Sequence.Internal        as Seq
+import           Data.Sequence          (Seq (..), (|>))
+import qualified Data.Sequence.Internal as Seq
 
 
 -- TODO: this could be more secure like using a PRNG or something

@@ -1,6 +1,6 @@
 -- TODO: export to upstream primitive
 
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RankNTypes    #-}
 {-# LANGUAGE TupleSections #-}
 
 module Control.Monad.Primitive.Extra
@@ -13,12 +13,10 @@ module Control.Monad.Primitive.Extra
   )
 where
 
-import           Data.Tuple                     ( swap )
-import           Data.Tuple.Extra               ( dupe )
-import           Control.Monad.Primitive        ( PrimMonad
-                                                , PrimState
-                                                )
+import           Control.Monad.Primitive (PrimMonad, PrimState)
 import           Data.Primitive.MutVar
+import           Data.Tuple              (swap)
+import           Data.Tuple.Extra        (dupe)
 
 
 newtype PrimST m s = PrimST { statePrimST :: forall a. (s -> (a, s)) -> m a }

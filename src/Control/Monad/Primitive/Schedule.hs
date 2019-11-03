@@ -1,4 +1,4 @@
-{-# LANGUAGE BlockArguments             #-}
+{-# LANGUAGE BlockArguments #-}
 
 module Control.Monad.Primitive.Schedule
   ( schedule
@@ -14,15 +14,12 @@ module Control.Monad.Primitive.Schedule
 where
 
 -- external
-import           Control.Monad.Trans.Class      ( MonadTrans(lift) )
-import           Control.Monad.Trans.Maybe      ( MaybeT(MaybeT, runMaybeT) )
-import           Control.Monad.Primitive.Extra  ( PrimMonad
-                                                , PrimST(statePrimST)
-                                                , readPrimST
-                                                , modifyPrimST
-                                                )
-import           Control.Monad.Extra            ( whenMaybe )
-import           Data.Maybe                     ( fromMaybe )
+import           Control.Monad.Extra           (whenMaybe)
+import           Control.Monad.Primitive.Extra (PrimMonad, PrimST (statePrimST),
+                                                modifyPrimST, readPrimST)
+import           Control.Monad.Trans.Class     (MonadTrans (lift))
+import           Control.Monad.Trans.Maybe     (MaybeT (MaybeT, runMaybeT))
+import           Data.Maybe                    (fromMaybe)
 
 -- internal
 import           Data.Schedule

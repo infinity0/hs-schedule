@@ -5,14 +5,14 @@
 module Data.Schedule.Internal where
 
 -- external
-import           Data.Bifunctor                 ( first )
-import           Data.Word                      ( Word64 )
-import           GHC.Generics                   ( Generic )
+import           Data.Bifunctor  (first)
+import           Data.Word       (Word64)
+import           GHC.Generics    (Generic)
 
 -- internal
-import qualified Data.Map.Strict               as Map
-import           Data.Rsv.RMMap                 ( RMMap )
-import qualified Data.Rsv.RMMap                as M
+import qualified Data.Map.Strict as Map
+import           Data.Rsv.RMMap  (RMMap)
+import qualified Data.Rsv.RMMap  as M
 
 
 -- TODO: export to upstream extra

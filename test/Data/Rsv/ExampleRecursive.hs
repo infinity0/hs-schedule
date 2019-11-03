@@ -2,11 +2,7 @@
 
 module Data.Rsv.ExampleRecursive where
 
-import           Data.Rsv.RList                 ( Delete
-                                                , RList
-                                                , insert
-                                                , toList
-                                                )
+import           Data.Rsv.RList (Delete, RList, insert, toList)
 
 
 -- | Alias for copy+paste convenience, in case anyone wants to adapt the below

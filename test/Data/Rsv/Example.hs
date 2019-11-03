@@ -5,16 +5,13 @@
 module Data.Rsv.Example where
 
 -- external
-import           Control.Monad.Trans.State.Strict
-                                                ( evalStateT
-                                                , state
-                                                )
-import           Data.Functor.Identity          ( runIdentity )
-import           Data.Maybe                     ( isJust )
+import           Control.Monad.Trans.State.Strict (evalStateT, state)
+import           Data.Functor.Identity            (runIdentity)
+import           Data.Maybe                       (isJust)
 
 -- internal
-import qualified Data.Rsv.RList                as L
-import qualified Data.Rsv.RMMap                as M
+import qualified Data.Rsv.RList                   as L
+import qualified Data.Rsv.RMMap                   as M
 
 
 -- | Basic usage example for 'RList'

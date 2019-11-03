@@ -20,25 +20,16 @@ module Control.Arrow.Transformer.Schedule
 where
 
 -- external
-import           Control.Arrow                  ( Arrow(..)
-                                                , ArrowApply(app)
-                                                , ArrowChoice((|||))
-                                                , ArrowLoop
-                                                , ArrowPlus
-                                                , ArrowZero
-                                                , returnA
-                                                )
-import           Control.Arrow.Operations       ( ArrowState(fetch) )
-import           Control.Arrow.Transformer      ( ArrowTransformer(lift) )
-import           Control.Arrow.Transformer.State
-                                                ( StateArrow(StateArrow)
-                                                , runState
-                                                )
-import           Control.Category               ( Category
-                                                , (<<<)
-                                                , (>>>)
-                                                )
-import           Data.Maybe                     ( fromMaybe )
+import           Control.Arrow                   (Arrow (..), ArrowApply (app),
+                                                  ArrowChoice ((|||)),
+                                                  ArrowLoop, ArrowPlus,
+                                                  ArrowZero, returnA)
+import           Control.Arrow.Operations        (ArrowState (fetch))
+import           Control.Arrow.Transformer       (ArrowTransformer (lift))
+import           Control.Arrow.Transformer.State (StateArrow (StateArrow),
+                                                  runState)
+import           Control.Category                (Category, (<<<), (>>>))
+import           Data.Maybe                      (fromMaybe)
 
 -- internal
 import           Data.Schedule

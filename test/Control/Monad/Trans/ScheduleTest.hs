@@ -5,14 +5,12 @@
 module Control.Monad.Trans.ScheduleTest where
 
 -- external
-import           Test.Tasty              hiding ( after )
+import           Test.Tasty                   hiding (after)
 import           Test.Tasty.HUnit
 
-import           Control.Monad                  ( void
-                                                , when
-                                                )
-import           Control.Monad.Trans.Class      ( MonadTrans(lift) )
-import           Control.Monad.Trans.Maybe      ( MaybeT(MaybeT, runMaybeT) )
+import           Control.Monad                (void, when)
+import           Control.Monad.Trans.Class    (MonadTrans (lift))
+import           Control.Monad.Trans.Maybe    (MaybeT (MaybeT, runMaybeT))
 
 -- internal
 import           Control.Clock.System

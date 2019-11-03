@@ -13,12 +13,12 @@ module Control.Clock.System
 where
 
 -- external
-import           Control.Concurrent             ( threadDelay )
-import           Control.Concurrent.Async       ( race )
-import           Control.Monad                  ( forever )
-import           Data.Void                      ( Void )
+import           Control.Concurrent       (threadDelay)
+import           Control.Concurrent.Async (race)
+import           Control.Monad            (forever)
+import           Data.Void                (Void)
 
-import qualified System.Time.Monotonic         as T
+import qualified System.Time.Monotonic    as T
 
 -- internal
 import           Control.Clock
