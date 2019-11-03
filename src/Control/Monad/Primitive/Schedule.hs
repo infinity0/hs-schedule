@@ -42,22 +42,22 @@ getSched :: Functor m => PrimST m (Schedule t) -> (Schedule t -> a) -> m a
 getSched sched f = f <$> readPrimST sched
 
 runTick :: (PrimMonad m, Monoid a) => PrimST m (Schedule t) -> (t -> m a) -> m a
-runTick sched runTask = whileJustM $ runMaybeT $ do
+runTick sched runTickTask = whileJustM $ runMaybeT $ do
   MaybeT (schedule sched popOrTick) >>= \(c, t) -> lift $ do
     schedule' sched $ acquireLiveTask c
-    r <- runTask t -- TODO: catch Haskell exceptions here
+    r <- runTickTask t -- TODO: catch Haskell exceptions here
     schedule' sched $ releaseLiveTask c
     pure r
 
 runTicksTo
   :: (PrimMonad m, Monoid a)
   => PrimST m (Schedule t)
-  -> (t -> m a)
+  -> (Tick -> t -> m a)
   -> Tick
   -> m a
 runTicksTo sched runTask tick = whileJustM $ do
   tick' <- getSched sched tickNow
-  whenMaybe (tick' < tick) $ runTick sched runTask
+  whenMaybe (tick' < tick) $ runTick sched $ runTask tick
 
 getInput
   :: (PrimMonad m)
@@ -71,7 +71,7 @@ getInput sched getTimedInput = do
 mkOutput
   :: (PrimMonad m, Monoid a)
   => PrimST m (Schedule t)
-  -> (t -> m a)
+  -> (Tick -> t -> m a)
   -> (i -> m a)
   -> (Either Tick i -> m a)
 mkOutput sched runTask runInput = runTicksTo sched runTask `either` runInput

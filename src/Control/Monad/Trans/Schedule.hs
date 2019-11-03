@@ -56,18 +56,21 @@ getSched :: Monad m => (Schedule t -> a) -> ScheduleT t m a
 getSched f = ScheduleT (f <$> get)
 
 runTick :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> ScheduleT t m a
-runTick runTask = whileJustM $ runMaybeT $ do
+runTick runTickTask = whileJustM $ runMaybeT $ do
   MaybeT (schedule popOrTick) >>= \(c, t) -> lift $ do
     schedule' $ acquireLiveTask c
-    r <- runTask t -- TODO: catch Haskell exceptions here
+    r <- runTickTask t -- TODO: catch Haskell exceptions here
     schedule' $ releaseLiveTask c
     pure r
 
 runTicksTo
-  :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> Tick -> ScheduleT t m a
+  :: (Monad m, Monoid a)
+  => (Tick -> t -> ScheduleT t m a)
+  -> Tick
+  -> ScheduleT t m a
 runTicksTo runTask tick = whileJustM $ do
   tick' <- getSched tickNow
-  whenMaybe (tick' < tick) $ runTick runTask
+  whenMaybe (tick' < tick) $ runTick $ runTask tick
 
 getInput
   :: (Monad m)
@@ -79,7 +82,7 @@ getInput getTimedInput = do
 
 mkOutput
   :: (Monad m, Monoid a)
-  => (t -> ScheduleT t m a)
+  => (Tick -> t -> ScheduleT t m a)
   -> (i -> ScheduleT t m a)
   -> (Either Tick i -> ScheduleT t m a)
 mkOutput runTask runInput = runTicksTo runTask `either` runInput

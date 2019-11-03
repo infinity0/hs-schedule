@@ -89,24 +89,28 @@ whileJustA act = arr (, mempty) >>> go
       Just r  -> go -< (i, rr <> r)
 
 runTick
-  :: (ArrowChoice a, Monoid o) => ScheduleArr t a t o -> ScheduleArr t a i o
-runTick runTask = whileJustA $ proc i -> do
-  r' <- schedule (const popOrTick) -< i
+  :: (ArrowChoice a, Monoid o)
+  => ScheduleArr t a (Tick, t) o
+  -> ScheduleArr t a Tick o
+runTick runTickTask = whileJustA $ proc tick -> do
+  r' <- schedule (const popOrTick) -< ()
   case r' of
     Nothing     -> returnA -< Nothing
     Just (c, t) -> do
       () <- schedule' acquireLiveTask -< c
-      r  <- runTask -< t -- TODO: catch Haskell exceptions here
+      r  <- runTickTask -< (tick, t) -- TODO: catch Haskell exceptions here
       () <- schedule' releaseLiveTask -< c
       returnA -< Just r
 
 runTicksTo
-  :: (ArrowChoice a, Monoid o) => ScheduleArr t a t o -> ScheduleArr t a Tick o
+  :: (ArrowChoice a, Monoid o)
+  => ScheduleArr t a (Tick, t) o
+  -> ScheduleArr t a Tick o
 runTicksTo runTask = whileJustA $ proc tick -> do
   tick' <- getSched tickNow -< ()
   if tick' >= tick
     then returnA -< Nothing
-    else arr Just <<< runTick runTask -< ()
+    else arr Just <<< runTick runTask -< tick
 
 getInput
   :: (Arrow a)
@@ -117,7 +121,7 @@ getInput getTimedInput =
 
 mkOutput
   :: (ArrowChoice a, Monoid o)
-  => (ScheduleArr t a t o)
+  => (ScheduleArr t a (Tick, t) o)
   -> (ScheduleArr t a i o)
   -> (ScheduleArr t a (Either Tick i) o)
 mkOutput runTask runInput = runTicksTo runTask ||| runInput

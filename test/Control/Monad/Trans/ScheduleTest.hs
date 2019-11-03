@@ -39,7 +39,7 @@ smoke = do
   assertEqual "schedule.tasks" (empty { handles = handles (tasks s) }) (tasks s)
   assertEqual "schedule.*" (newSchedule { now = now s, tasks = tasks s }) s
  where
-  countdown x = do
+  countdown _ x = do
     when (x > 0) $ do
       void $ schedule $ after 1 $ pred x
     pure [x]
