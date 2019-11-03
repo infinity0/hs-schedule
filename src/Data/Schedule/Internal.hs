@@ -46,13 +46,21 @@ data Schedule t = Schedule {
 newSchedule :: Schedule t
 newSchedule = Schedule { now = 0, tasks = M.empty, nowRunning = Nothing }
 
+-- | Get the current tick.
+tickNow :: Schedule t -> Tick
+tickNow = now
+
+-- | Get the previous tick.
+tickPrev :: Schedule t -> Tick
+tickPrev = pred . now
+
 -- | Get the number of ticks until the next scheduled task.
 --
 -- This may be used by an impure computation to set an actual timeout. Note
 -- that the timeout should be interruptible e.g. in case some other input
 -- arrives in the meantime to set an earlier timeout.
-ticksUntilNextTask :: Schedule t -> Maybe TickDelta
-ticksUntilNextTask (Schedule now' tasks0 _) = do
+ticksToIdle :: Schedule t -> Maybe TickDelta
+ticksToIdle (Schedule now' tasks0 _) = do
   m <- fst <$> Map.lookupMin (M.content tasks0)
   let d = (m - now')
   if d < 0 then error "minimum key is in the past???" else pure (fromIntegral d)

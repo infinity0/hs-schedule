@@ -9,7 +9,9 @@ module Data.Schedule
   , LiveTask
   , Schedule
   , newSchedule
-  , ticksUntilNextTask
+  , tickNow
+  , tickPrev
+  , ticksToIdle
   , after
   , cancel
   , renew

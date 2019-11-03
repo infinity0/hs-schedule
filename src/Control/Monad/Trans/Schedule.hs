@@ -4,11 +4,9 @@
 module Control.Monad.Trans.Schedule
   ( ScheduleT(..)
   , runScheduleT
-  , tickNow
-  , tickPrev
-  , ticksToIdle
   , schedule
   , schedule'
+  , getSched
   , runTick
   , runTicksTo
   , getInput
@@ -45,17 +43,6 @@ newtype ScheduleT t m a = ScheduleT { unScheduleT :: StateT (Schedule t) m a }
 runScheduleT :: ScheduleT t m a -> Schedule t -> m (a, Schedule t)
 runScheduleT = runStateT . unScheduleT
 
--- | Get the current tick, whose tasks have not all run yet.
-tickNow :: Monad m => ScheduleT t m Tick
-tickNow = ScheduleT (now <$> get)
-
--- | Get the previous tick, whose tasks have all already run.
-tickPrev :: Monad m => ScheduleT t m Tick
-tickPrev = pred <$> tickNow
-
-ticksToIdle :: Monad m => ScheduleT t m (Maybe TickDelta)
-ticksToIdle = ScheduleT (ticksUntilNextTask <$> get)
-
 -- | Run a schedule action like 'after', 'cancel', or 'renew'.
 schedule :: Monad m => (Schedule t -> (a, Schedule t)) -> ScheduleT t m a
 schedule = ScheduleT . state
@@ -63,6 +50,10 @@ schedule = ScheduleT . state
 -- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
 schedule' :: Monad m => (Schedule t -> Schedule t) -> ScheduleT t m ()
 schedule' = ScheduleT . modify
+
+-- | Get a schedule property like 'tickNow', 'tickPrev', or 'ticksToIdle'.
+getSched :: Monad m => (Schedule t -> a) -> ScheduleT t m a
+getSched f = ScheduleT (f <$> get)
 
 runTick :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> ScheduleT t m a
 runTick runTask = whileJustM $ runMaybeT $ do
@@ -75,7 +66,7 @@ runTick runTask = whileJustM $ runMaybeT $ do
 runTicksTo
   :: (Monad m, Monoid a) => (t -> ScheduleT t m a) -> Tick -> ScheduleT t m a
 runTicksTo runTask tick = whileJustM $ do
-  tick' <- tickNow
+  tick' <- getSched tickNow
   whenMaybe (tick' < tick) $ runTick runTask
 
 getInput
@@ -83,7 +74,7 @@ getInput
   => (TickDelta -> m (Either Tick i))
   -> ScheduleT t m (Either Tick i)
 getInput getTimedInput = do
-  d <- ticksToIdle
+  d <- getSched ticksToIdle
   lift $ getTimedInput (fromMaybe maxBound d)
 
 mkOutput

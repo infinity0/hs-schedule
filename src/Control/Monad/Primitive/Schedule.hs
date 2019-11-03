@@ -1,11 +1,9 @@
 {-# LANGUAGE BlockArguments             #-}
 
 module Control.Monad.Primitive.Schedule
-  ( tickNow
-  , tickPrev
-  , ticksToIdle
-  , schedule
+  ( schedule
   , schedule'
+  , getSched
   , runTick
   , runTicksTo
   , getInput
@@ -31,17 +29,6 @@ import           Data.Schedule
 import           Data.Schedule.Internal
 
 
--- | Get the current tick, whose tasks have not all run yet.
-tickNow :: PrimMonad m => PrimST m (Schedule t) -> m Tick
-tickNow sched = now <$> readPrimST sched
-
--- | Get the previous tick, whose tasks have all already run.
-tickPrev :: PrimMonad m => PrimST m (Schedule t) -> m Tick
-tickPrev sched = pred <$> tickNow sched
-
-ticksToIdle :: PrimMonad m => PrimST m (Schedule t) -> m (Maybe TickDelta)
-ticksToIdle sched = ticksUntilNextTask <$> readPrimST sched
-
 -- | Run a schedule action like 'after', 'cancel', or 'renew'.
 schedule :: PrimST m (Schedule t) -> (Schedule t -> (a, Schedule t)) -> m a
 schedule sched = statePrimST sched
@@ -49,6 +36,10 @@ schedule sched = statePrimST sched
 -- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
 schedule' :: PrimST m (Schedule t) -> (Schedule t -> Schedule t) -> m ()
 schedule' sched = modifyPrimST sched
+
+-- | Get a schedule property like 'tickNow', 'tickPrev', or 'ticksToIdle'.
+getSched :: Functor m => PrimST m (Schedule t) -> (Schedule t -> a) -> m a
+getSched sched f = f <$> readPrimST sched
 
 runTick :: (PrimMonad m, Monoid a) => PrimST m (Schedule t) -> (t -> m a) -> m a
 runTick sched runTask = whileJustM $ runMaybeT $ do
@@ -65,7 +56,7 @@ runTicksTo
   -> Tick
   -> m a
 runTicksTo sched runTask tick = whileJustM $ do
-  tick' <- tickNow sched
+  tick' <- getSched sched tickNow
   whenMaybe (tick' < tick) $ runTick sched runTask
 
 getInput
@@ -74,7 +65,7 @@ getInput
   -> (TickDelta -> m (Either Tick i))
   -> m (Either Tick i)
 getInput sched getTimedInput = do
-  d <- ticksToIdle sched
+  d <- getSched sched ticksToIdle
   getTimedInput (fromMaybe maxBound d)
 
 mkOutput

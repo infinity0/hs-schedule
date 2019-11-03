@@ -7,11 +7,9 @@
 module Control.Arrow.Transformer.Schedule
   ( ScheduleArr(..)
   , runScheduleArr
-  , tickNow
-  , tickPrev
-  , ticksToIdle
   , schedule
   , schedule'
+  , getSched
   , runTick
   , runTicksTo
   , getInput
@@ -64,17 +62,6 @@ runScheduleArr
   :: Arrow a => ScheduleArr t a i o -> a (i, Schedule t) (o, Schedule t)
 runScheduleArr = runState . unScheduleArr
 
--- | Get the current tick, whose tasks have not all run yet.
-tickNow :: Arrow a => ScheduleArr t a i Tick
-tickNow = ScheduleArr fetch >>> arr now
-
--- | Get the previous tick, whose tasks have all already run.
-tickPrev :: Arrow a => ScheduleArr t a i Tick
-tickPrev = tickNow >>> arr pred
-
-ticksToIdle :: Arrow a => ScheduleArr t a i (Maybe TickDelta)
-ticksToIdle = ScheduleArr fetch >>> arr ticksUntilNextTask
-
 state :: Arrow a => ((i, Schedule t) -> (o, Schedule t)) -> ScheduleArr t a i o
 state = ScheduleArr . StateArrow . arr
 
@@ -86,6 +73,10 @@ schedule = state . uncurry
 -- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
 schedule' :: Arrow a => (i -> Schedule t -> Schedule t) -> ScheduleArr t a i ()
 schedule' = state . (((), ) .) . uncurry
+
+-- | Get a schedule property like 'tickNow', 'tickPrev', or 'ticksToIdle'.
+getSched :: Arrow a => (Schedule t -> o) -> ScheduleArr t a i o
+getSched f = ScheduleArr fetch >>> arr f
 
 -- TODO: export to upstream arrows or extra
 whileJustA :: (ArrowChoice a, Monoid o) => a i (Maybe o) -> a i o
@@ -112,7 +103,7 @@ runTick runTask = whileJustA $ proc i -> do
 runTicksTo
   :: (ArrowChoice a, Monoid o) => ScheduleArr t a t o -> ScheduleArr t a Tick o
 runTicksTo runTask = whileJustA $ proc tick -> do
-  tick' <- tickNow -< ()
+  tick' <- getSched tickNow -< ()
   if tick' >= tick
     then returnA -< Nothing
     else arr Just <<< runTick runTask -< ()
@@ -122,7 +113,7 @@ getInput
   => a TickDelta (Either Tick i)
   -> ScheduleArr t a i' (Either Tick i)
 getInput getTimedInput =
-  ticksToIdle >>> arr (fromMaybe maxBound) >>> lift getTimedInput
+  getSched ticksToIdle >>> arr (fromMaybe maxBound) >>> lift getTimedInput
 
 mkOutput
   :: (ArrowChoice a, Monoid o)

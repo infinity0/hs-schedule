@@ -31,7 +31,7 @@ smoke = do
   (r, s) <- flip runScheduleT newSchedule $ do
     _ <- schedule $ after 1 top
     whileJustM $ runMaybeT $ do
-      MaybeT ticksToIdle >>= \d -> lift $ do
+      MaybeT (getSched ticksToIdle) >>= \d -> lift $ do
         lift (timerFromIOClock clock voidInput d)
           >>= mkOutput countdown undefined
   assertEqual "results" [top, top - 1 .. 0] r
