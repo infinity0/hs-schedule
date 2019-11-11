@@ -72,11 +72,15 @@ after tDelta task s@(Schedule now' tasks0 _) =
   in  let (d, tasks1) = M.enqueue (tick, task) tasks0
       in  (LiveTask d, s { tasks = tasks1 })
 
--- | Cancel a task.
+-- | Cancel a task. Result is Nothing if task was not already active.
 cancel :: LiveTask t -> Schedule t -> (Maybe t, Schedule t)
 cancel (LiveTask c) sched0 = case M.unqueue c (tasks sched0) of
   (Nothing, _     ) -> (Nothing, sched0)
   (Just k , tasks1) -> (Just k, sched0 { tasks = tasks1 })
+
+-- | Cancel a task, discarding the result.
+cancel_ :: LiveTask t -> Schedule t -> ((), Schedule t)
+cancel_ t s = ((), snd $ cancel t s)
 
 -- | Re-schedule a task to instead run after a given number of ticks.
 -- If the task was already cancelled, do nothing.

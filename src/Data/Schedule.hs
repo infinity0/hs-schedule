@@ -14,6 +14,7 @@ module Data.Schedule
   , ticksToIdle
   , after
   , cancel
+  , cancel_
   , renew
   )
 where
