@@ -71,6 +71,7 @@ Library
       , lens
       -- for Control.Clock.System
       , async
+      , safe
       , time                    >= 1.5
       , system-time-monotonic   >= 0.2
     HS-Source-Dirs: src
@@ -86,6 +87,7 @@ Library
       , Data.Rsv.RList
       , Data.Rsv.RMMap
       , Data.Schedule
+      , Data.Schedule.Applied.Future
       , Data.Schedule.Internal
 
 Test-Suite doctests
