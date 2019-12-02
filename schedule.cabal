@@ -81,6 +81,7 @@ Library
       , Control.Clock.System
       , Control.Arrow.Transformer.Schedule
       , Control.Monad.Trans.Schedule
+      , Control.Monad.Trans.Schedule.State
       , Control.Monad.Primitive.Schedule
       , Control.Monad.Primitive.Extra
       , Data.Rsv
