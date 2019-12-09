@@ -1,28 +1,38 @@
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
 
 {-| Implementation of a 'Clock' based on the system monotonic clock. -}
-
 module Control.Clock.System
   ( newClock
   , newClock1ms
   , newClock1s
   , convClock
-  , timerFromIOClock
+  , clockWithIO
+  , clockTimerIO
   , voidInput
+  , module Control.Clock
   )
 where
 
 -- external
-import           Control.Concurrent       (threadDelay)
-import           Control.Concurrent.Async (race)
-import           Control.Monad            (forever)
-import           Data.Void                (Void)
+import qualified System.Time.Monotonic          as T
 
-import qualified System.Time.Monotonic    as T
+import           Control.Concurrent             (threadDelay)
+import           Control.Concurrent.Async       (async, cancel, link, link2,
+                                                 race)
+import           Control.Concurrent.STM         (STM, atomically, orElse)
+import           Control.Concurrent.STM.TBQueue (TBQueue, isEmptyTBQueue,
+                                                 newTBQueueIO, readTBQueue,
+                                                 tryPeekTBQueue, tryReadTBQueue,
+                                                 writeTBQueue)
+import           Control.Monad                  (forever, unless, when)
+import           Data.Time.Clock                (DiffTime,
+                                                 diffTimeToPicoseconds,
+                                                 picosecondsToDiffTime)
+import           Data.Void                      (Void)
 
 -- internal
 import           Control.Clock
-import           Data.Time.Clock
 
 
 -- | Create a new clock ticking at a given rate.
@@ -53,19 +63,75 @@ checkPos n = if n > 0 then n else error $ "must be positive: " ++ show n
 -}
 convClock :: DiffTime -> T.Clock -> Clock IO
 convClock rate c =
-  let r = diffTimeToPicoseconds $ checkPos rate
-  in  Clock
-        { clockNow   = (`div` r) . diffTimeToPicoseconds <$> T.clockGetTime c
-        , clockDelay = T.delay
-                       . picosecondsToDiffTime
-                       . (r *)
-                       . fromIntegral
-                       . checkNonNeg
+  let r  = diffTimeToPicoseconds $ checkPos rate
+      c' = Clock
+        { clockNow   = (`div` r) <$> clockNowPico c
+        , clockDelay = \d -> when (d > 0) $ do
+                         remain <- (`rem` r) <$> clockNowPico c
+                         -- wait a bit past the tick, make sure we've gone over
+                         let t = r * fromIntegral d * 16 `div` 15 - remain
+                         clockDelayPico t
+        , clockWith  = clockWithIO c'
+        , clockTimer = clockTimerIO c'
         }
+  in  c'
 
--- TODO: is race actually safe e.g. when reading from a pipe?
-timerFromIOClock :: Clock IO -> IO a -> TickDelta -> IO (Either Tick a)
-timerFromIOClock c input d = race (clockTick c d) input
+clockNowPico :: T.Clock -> IO Integer
+clockNowPico c = diffTimeToPicoseconds <$> T.clockGetTime c
+
+clockDelayPico :: Integer -> IO ()
+clockDelayPico d = T.delay $ picosecondsToDiffTime $ checkNonNeg d
+
+-- assert that a writeTBQueue is non-blocking
+writeTBQueue' :: TBQueue a -> a -> STM ()
+writeTBQueue' q r = do
+  e <- isEmptyTBQueue q
+  unless e $ error "failed to assert non-blocking write on TBQueue"
+  writeTBQueue q r
+
+clockWithIO :: Clock IO -> IO a -> IO (Clocked IO a)
+clockWithIO clock action = do
+  qi           <- newTBQueueIO 1
+  qo           <- newTBQueueIO 1
+  qt           <- newTBQueueIO 1
+
+  -- keep running action
+  actionThread <- async $ forever $ do
+    -- block until we get a request to run action, but don't pop the queue
+    atomically $ do
+      readTBQueue qi
+      writeTBQueue qi ()
+    r <- action
+    -- pop the queue after we write the result of action
+    atomically $ do
+      writeTBQueue' qo r
+      readTBQueue qi
+  link actionThread
+
+  -- keep producing ticks
+  tickThread <- async $ forever $ do
+    t <- clockTick clock 1
+    atomically $ do
+      _ <- tryReadTBQueue qt -- empty the queue before we write a tick
+      writeTBQueue' qt t
+  link tickThread
+
+  -- Kill both threads if any one of them dies. This ensures that the user
+  -- doesn't need to call fin themselves if anything throws an exception.
+  link2 actionThread tickThread
+
+  let fin     = cancel actionThread >> cancel tickThread
+      action' = do
+        atomically $ tryPeekTBQueue qi >>= \case
+          Nothing -> writeTBQueue qi ()
+          Just () -> pure ()
+        atomically $ do
+          (Right <$> readTBQueue qo) `orElse` (Left <$> readTBQueue qt)
+
+  pure (Clocked action' fin)
+
+clockTimerIO :: Clock IO -> TickDelta -> IO a -> IO (Either Tick a)
+clockTimerIO c d = race (clockTick c d)
 
 voidInput :: IO Void
 voidInput = forever $ threadDelay maxBound

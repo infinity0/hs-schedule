@@ -1,5 +1,4 @@
 {-# LANGUAGE BlockArguments      #-}
-{-# LANGUAGE LambdaCase          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 
 module Control.Monad.Trans.ScheduleTest where
@@ -20,18 +19,25 @@ import           Data.Schedule.Internal
 
 
 tests :: TestTree
-tests = testGroup "Control.Monad.Trans.ScheduleTest" [testCase "smoke" smoke]
+tests = testGroup
+  "Control.Monad.Trans.ScheduleTest"
+  [ testCase "smoke clockTimer"
+    $ smoke (\clock -> pure (flip (clockTimer clock) voidInput))
+  , testCase "smoke clockWith"
+    -- TODO: we should call 'fin' (see clockWith) after the test but meh
+    $ smoke (\clock -> const . runClocked <$> clockWith clock voidInput)
+  ]
 
-smoke :: IO ()
-smoke = do
+smoke :: (Clock IO -> IO (TickDelta -> IO (Either Tick i))) -> IO ()
+smoke mkRecv = do
   clock <- newClock1ms
+  recv  <- mkRecv clock
   let top = 17
   (r, s) <- flip runScheduleT newSchedule $ do
     _ <- schedule $ after 1 top
     whileJustM $ runMaybeT $ do
       MaybeT (getSched ticksToIdle) >>= \d -> lift $ do
-        lift (timerFromIOClock clock voidInput d)
-          >>= mkOutput countdown undefined
+        lift (recv d) >>= mkOutput countdown undefined
   assertEqual "results" [top, top - 1 .. 0] r
   assertBool "schedule.now" $ now s > top
   assertEqual "schedule.tasks" (empty { handles = handles (tasks s) }) (tasks s)
