@@ -15,7 +15,7 @@ import qualified Data.Set                         as S
 -- external
 import           Control.Lens                     (IndexedTraversal', Lens', at,
                                                    contains, indices, (%%~),
-                                                   (%~), (.~), (^.))
+                                                   (%~), (.~), (?~), (^.))
 import           Control.Lens.TH                  (makeLensesFor, makePrisms)
 import           Control.Monad.Trans.State.Strict (runState, state)
 import           Data.Function                    ((&))
@@ -115,12 +115,12 @@ sExpectFuture d t sfi sei lsf lse lsch s0 = case status of
       Right
         $ s1
         -- SExpect add expecting, set timeout
-        & (lse . _seExpects . at sfi .~ Just lt)
+        & (lse . _seExpects . at sfi ?~ lt)
         -- SFuture add sfWaiting
         & (lsf .~ SFWaiting (sfWaiting & contains sei .~ True))
     SFResult r -> do
       -- SExpect add result to seResults
-      Right $ s0 & lse . _seResults . at sfi .~ Just (GotResult r)
+      Right $ s0 & lse . _seResults . at sfi ?~ GotResult r
   where status = sCheckStatus sfi sei lsf lse s0
 
 sExpectCancel
@@ -158,7 +158,7 @@ sExpectTimeout tk sfi sei lsf lse lsch s0 = case status of
   NotExpecting      -> Left $ SFEInvalidPrecondition (Expecting ()) NotExpecting
   Expecting (_, lt) -> do
     -- SExcept add (TimedOut tick) result
-    let s1 = s0 & lse . _seResults . at sfi %~ \r -> case r of
+    let s1 = s0 & lse . _seResults . at sfi %~ \case
           Just _  -> error "SExpect expects but also results"
           Nothing -> Just (TimedOut tk)
     sExpectCancel sfi sei lsf lse lsch s1
@@ -190,6 +190,6 @@ sFutureResult r sfi lsf lsse lsch s0 = do
     let (lt', seExpects') = seExpects & at sfi %%~ (, Nothing)
         lt = fromJustNote "SFuture idx not found in SExpect expects" lt'
     state $ cancel_ lt
-    let seResults' = seResults & at sfi .~ Just (GotResult r)
+    let seResults' = seResults & at sfi ?~ GotResult r
     -- SExpect add result to seResults
     pure $ se { seExpects = seExpects', seResults = seResults' }

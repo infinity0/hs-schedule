@@ -112,7 +112,7 @@ getInput getTimedInput =
 
 mkOutput
   :: (ArrowChoice a, Monoid o)
-  => (ScheduleArr t a (Tick, t) o)
-  -> (ScheduleArr t a i o)
-  -> (ScheduleArr t a (Either Tick i) o)
+  => ScheduleArr t a (Tick, t) o
+  -> ScheduleArr t a i o
+  -> ScheduleArr t a (Either Tick i) o
 mkOutput runTask runInput = runTicksTo runTask ||| runInput

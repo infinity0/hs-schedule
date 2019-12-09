@@ -28,11 +28,11 @@ import           Data.Schedule.Internal
 
 -- | Run a schedule action like 'after', 'cancel', or 'renew'.
 schedule :: PrimST m (Schedule t) -> (Schedule t -> (a, Schedule t)) -> m a
-schedule sched = statePrimST sched
+schedule = statePrimST
 
 -- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
 schedule' :: PrimST m (Schedule t) -> (Schedule t -> Schedule t) -> m ()
-schedule' sched = modifyPrimST sched
+schedule' = modifyPrimST
 
 -- | Get a schedule property like 'tickNow', 'tickPrev', or 'ticksToIdle'.
 getSched :: Functor m => PrimST m (Schedule t) -> (Schedule t -> a) -> m a

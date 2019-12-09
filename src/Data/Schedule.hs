@@ -1,6 +1,3 @@
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-
 {-| Data structure representing scheduled tasks. -}
 
 module Data.Schedule

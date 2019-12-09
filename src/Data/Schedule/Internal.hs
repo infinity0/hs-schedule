@@ -1,6 +1,5 @@
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE LambdaCase                 #-}
+{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE LambdaCase    #-}
 
 module Data.Schedule.Internal where
 
@@ -62,7 +61,7 @@ tickPrev = pred . now
 ticksToIdle :: Schedule t -> Maybe TickDelta
 ticksToIdle (Schedule now' tasks0 _) = do
   m <- fst <$> Map.lookupMin (M.content tasks0)
-  let d = (m - now')
+  let d = m - now'
   if d < 0 then error "minimum key is in the past???" else pure (fromIntegral d)
 
 -- | Schedule a task to run after a given number of ticks.
