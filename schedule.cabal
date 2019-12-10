@@ -80,9 +80,7 @@ Library
         Control.Clock
       , Control.Clock.System
       , Control.Arrow.Transformer.Schedule
-      , Control.Monad.Trans.Schedule
-      , Control.Monad.Trans.Schedule.State
-      , Control.Monad.Primitive.Schedule
+      , Control.Monad.Schedule
       , Control.Monad.Primitive.Extra
       , Data.Rsv
       , Data.Rsv.Common
@@ -110,12 +108,13 @@ Test-Suite unit
       , tasty-quickcheck
       , tasty-hunit
       , checkers
+      , primitive
       , transformers
       , schedule
     HS-Source-Dirs: test
     Type: exitcode-stdio-1.0
     Main-Is: UnitTests.hs
     Other-Modules:
-        Control.Monad.Trans.ScheduleTest
+        Control.Monad.ScheduleTest
       , Data.Rsv.Example
       , Data.Rsv.ExampleRecursive

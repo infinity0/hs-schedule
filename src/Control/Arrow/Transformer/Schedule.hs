@@ -4,6 +4,11 @@
 {-# LANGUAGE MultiParamTypeClasses      #-}
 {-# LANGUAGE TupleSections              #-}
 
+{-| Run scheduled computations in a (stateful) arrow.
+
+TODO: generalise this in the style of Control.Monad.Schedule and move this
+simply to Control.Arrow.Schedule.
+-}
 module Control.Arrow.Transformer.Schedule
   ( ScheduleArr(..)
   , runScheduleArr

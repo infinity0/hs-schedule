@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric #-}
-{-# LANGUAGE LambdaCase    #-}
 
 module Data.Schedule.Internal where
 
@@ -13,14 +12,6 @@ import qualified Data.Map.Strict as Map
 import           Data.Rsv.RMMap  (RMMap)
 import qualified Data.Rsv.RMMap  as M
 
-
--- TODO: export to upstream extra
-whileJustM :: (Monad m, Monoid a) => m (Maybe a) -> m a
-whileJustM act = go mempty
- where
-  go accum = act >>= \case
-    Just r  -> go (accum <> r)
-    Nothing -> pure accum
 
 type Tick = Integer
 type TickDelta = Word64
