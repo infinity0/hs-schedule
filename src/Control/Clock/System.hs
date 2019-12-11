@@ -4,6 +4,7 @@
 {-| Implementation of a 'Clock' based on the system monotonic clock. -}
 module Control.Clock.System
   ( newClock
+  , newClockPico
   , newClock1ms
   , newClock1s
   , convClock
@@ -39,13 +40,17 @@ import           Control.Clock
 newClock :: DiffTime -> IO (Clock IO)
 newClock intv = convClock intv <$> T.newClock
 
+-- | Create a new clock ticking at a given rate.
+newClockPico :: Integer -> IO (Clock IO)
+newClockPico = newClock . picosecondsToDiffTime
+
 -- | Create a new clock ticking at 1 millisecond.
 newClock1ms :: IO (Clock IO)
-newClock1ms = convClock (picosecondsToDiffTime 1000000000) <$> T.newClock
+newClock1ms = newClockPico 1000000000
 
 -- | Create a new clock ticking at 1 second.
 newClock1s :: IO (Clock IO)
-newClock1s = convClock (picosecondsToDiffTime 1000000000000) <$> T.newClock
+newClock1s = newClockPico 1000000000000
 
 -- | Check for a non-negative number.
 checkNonNeg :: (Num a, Ord a, Show a) => a -> a
