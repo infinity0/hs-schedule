@@ -70,7 +70,7 @@ sUnqueue idx' slm = (snd <$> found', others)
   found'                  = case found of
     Seq.EmptyT              -> Nothing
     Seq.Single (Seq.Elem x) -> Just x
-    _                       -> error "delete found more than one key"
+    _                       -> error "sUnqueue found more than one key"
 
 sDequeue :: Seq a -> (Maybe a, Seq a)
 sDequeue (h :<| t) = (Just h, t)

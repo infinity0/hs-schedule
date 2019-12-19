@@ -8,7 +8,7 @@ module Control.Monad.ScheduleTest where
 import           Test.Tasty                       hiding (after)
 import           Test.Tasty.HUnit
 
-import           Control.Monad                    (void, when)
+import           Control.Monad                    (when)
 import           Control.Monad.Trans.Class        (MonadTrans (lift))
 import           Control.Monad.Trans.Maybe        (MaybeT (MaybeT, runMaybeT))
 import           Control.Monad.Trans.Reader       (ReaderT (..), asks)
@@ -19,7 +19,7 @@ import           Data.Primitive.MutVar            (newMutVar, readMutVar)
 import           Control.Clock.System
 import           Control.Monad.Primitive.Extra
 import           Control.Monad.Schedule
-import           Data.Rsv.RMMap
+import           Data.Rsv.RMMap                   (RMMap (..), empty)
 import           Data.Schedule.Internal
 
 
@@ -73,5 +73,10 @@ smoke mkRecv runWithNew runSched = do
  where
   countdown _ x = do
     when (x > 0) $ do
-      void $ runSched $ after 1 $ pred x
+      n <- runSched $ getST $ tickNow
+      t <- runSched $ after 1 $ pred x
+      s <- runSched $ getST $ taskStatus t
+      lift $ assertEqual "task status is pending after 'after'"
+                         s
+                         (TaskPending (n + 1) (pred x))
     pure [x]

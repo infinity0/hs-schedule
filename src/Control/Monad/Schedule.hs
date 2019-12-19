@@ -45,10 +45,10 @@ type RunSched t m = forall a . (Schedule t -> (a, Schedule t)) -> m a
 
 runTick :: (Monad m, Monoid a) => RunSched t m -> (t -> m a) -> m a
 runTick runS runTickTask = whileJustM $ runMaybeT $ do
-  MaybeT (runS popOrTick) >>= \(c, t) -> lift $ do
-    runS $ modST $ acquireTask c
-    r <- runTickTask t -- TODO: catch Haskell exceptions here
-    runS $ modST $ releaseTask c
+  MaybeT (runS popOrTick) >>= \(t, p) -> lift $ do
+    runS $ modST $ acquireTask (t, p)
+    r <- runTickTask p -- TODO: catch Haskell exceptions here
+    runS $ modST $ releaseTask t
     pure r
 
 runTicksTo

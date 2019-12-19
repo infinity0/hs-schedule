@@ -9,12 +9,14 @@ module Data.Schedule
   ( Tick
   , TickDelta
   , Task
+  , TaskStatus(..)
   , Schedule
   , newSchedule
   , checkValidity
   , tickNow
   , tickPrev
   , ticksToIdle
+  , taskStatus
   , after
   , cancel
   , cancel_

@@ -6,6 +6,7 @@ module Data.Schedule.Internal where
 
 -- external
 import           Data.Bifunctor  (first)
+import           Data.Text       (Text, pack)
 import           Data.Word       (Word64)
 import           GHC.Generics    (Generic)
 import           GHC.Stack       (HasCallStack)
@@ -13,6 +14,7 @@ import           GHC.Stack       (HasCallStack)
 -- internal
 import qualified Data.Map.Strict as M
 import qualified Data.Rsv.RMMap  as RM
+import qualified Data.Set        as S
 
 import           Data.Rsv.RMMap  (RMMap)
 
@@ -26,30 +28,49 @@ type TickDelta = Word64
 newtype Task t = Task (RM.Delete Tick t)
   deriving (Show, Read, Generic, Eq, Ord)
 
+-- | The current status of a task as returned by 'taskStatus'.
+data TaskStatus t =
+    TaskNotPending
+  -- ^ The task is not pending - either it was already run, or cancelled.
+  | TaskPending !Tick !t
+  -- ^ The task is due to run at some future tick.
+  | TaskRunning !t
+  -- ^ The task is running right now.
+  deriving (Show, Read, Generic, Eq, Ord)
+
 -- | The state of all scheduled pending tasks.
 --
 -- @t@ is the type of task-params.
 data Schedule t = Schedule {
     now     :: !Tick
   , tasks   :: !(RMMap Tick t)
-  , running :: !(Maybe (Task t))
-  -- TODO: map of all tasks, so we can check the status of a task
+  , pending :: !(S.Set (Task t))
+  , running :: !(Maybe (Task t, t))
 } deriving (Show, Read, Generic, Eq)
 
 newSchedule :: Schedule t
-newSchedule = Schedule { now = 0, tasks = RM.empty, running = Nothing }
+newSchedule =
+  Schedule { now = 0, tasks = RM.empty, pending = mempty, running = Nothing }
 
 -- | Check the schedule that its internal invariants all hold.
 --
 -- You must run this after deserialising one from untrusted input, e.g. via the
 -- 'Read' or 'Generic' instance. A result of "Nothing" means the check passed,
 -- otherwise 'Just errmsg' is given back.
-checkValidity :: Schedule t -> Maybe String
+checkValidity :: Schedule t -> Maybe Text
 checkValidity Schedule {..} =
-  let nowMatch = case M.lookupMin (RM.content tasks) of
+  let tasksValid = RM.checkValidity tasks
+      tasks'     = RM.content tasks
+      nowMatch   = case M.lookupMin tasks' of
         Nothing                -> True
         Just (nextTaskTick, _) -> now <= nextTaskTick
-  in  if nowMatch then Nothing else Just "has tasks for before now"
+      pending' = S.fromList $ Task <$> RM.toList tasks
+  in  case tasksValid of
+        Just e -> Just e
+        Nothing
+          | not nowMatch        -> Just $ pack "has tasks for before now"
+          | pending /= pending' -> Just $ pack "inconsistent pending tasks"
+          | otherwise           -> Nothing
 
 -- | Get the current tick, whose tasks have not all run yet.
 --
@@ -67,27 +88,38 @@ tickPrev = pred . now
 --
 -- This may be used by an impure runtime environment to set an actual timeout;
 -- see 'Control.Clock' for details.
-ticksToIdle :: HasCallStack => Schedule t -> Maybe TickDelta
+ticksToIdle :: Schedule t -> Maybe TickDelta
 ticksToIdle Schedule {..} = do
-  m <- fst <$> M.lookupMin (RM.content tasks)
-  let d = m - now
-  if d < 0 then error "minimum key is in the past???" else pure (fromIntegral d)
+  (m, _) <- M.lookupMin (RM.content tasks)
+  pure (fromIntegral (m - now))
+
+taskStatus :: HasCallStack => Task t -> Schedule t -> TaskStatus t
+taskStatus t@(Task d) Schedule {..} = if S.member t pending
+  then case RM.unqueue d tasks of -- ofc this doesn't actually unqueue
+    (Nothing             , _) -> error "inconsistent pending tasks"
+    (Just (tick, tParams), _) -> TaskPending tick tParams
+  else case running of
+    Just (t', tParams) | t == t' -> TaskRunning tParams
+    _                            -> TaskNotPending
 
 -- | Schedule a task to run after a given number of ticks.
 --
 -- This is relative to 'tickNow'; a @0@ delta schedules the task to be run at
 -- the end of the current tick, i.e. as soon as possible but not immediately.
 after :: TickDelta -> t -> Schedule t -> (Task t, Schedule t)
-after tDelta tParams s0@(Schedule now tasks0 _) =
+after tDelta tParams s0@(Schedule now tasks0 pending0 _) =
   let tick        = now + toInteger tDelta
       (d, tasks1) = RM.enqueue (tick, tParams) tasks0
-  in  (Task d, s0 { tasks = tasks1 })
+      pending1    = S.insert (Task d) pending0
+  in  (Task d, s0 { tasks = tasks1, pending = pending1 })
 
 -- | Cancel a task. Result is Nothing if task was not already pending.
 cancel :: Task t -> Schedule t -> (Maybe t, Schedule t)
-cancel (Task d) s0 = case RM.unqueue d (tasks s0) of
-  (Nothing     , _     ) -> (Nothing, s0)
-  (Just tParams, tasks1) -> (Just tParams, s0 { tasks = tasks1 })
+cancel (Task d) s0@(Schedule _ tasks0 pending0 _) = case RM.unqueue d tasks0 of
+  (Nothing, _) -> (Nothing, s0)
+  (Just (_, tParams), tasks1) ->
+    let pending1 = S.delete (Task d) pending0
+    in  (Just tParams, s0 { tasks = tasks1, pending = pending1 })
 
 -- | Cancel a task, discarding the result.
 cancel_ :: Task t -> Schedule t -> ((), Schedule t)
@@ -101,27 +133,28 @@ cancel_ t s = ((), snd $ cancel t s)
 renew :: TickDelta -> Task t -> Schedule t -> (Maybe (Task t), Schedule t)
 renew tDelta (Task d) s0 = case RM.unqueue d (tasks s0) of
   (Nothing, _) -> (Nothing, s0)
-  (Just tParams, tasks1) ->
+  (Just (_, tParams), tasks1) ->
     first Just $ after tDelta tParams (s0 { tasks = tasks1 })
 
 -- | Pop the next task to be run in this tick.
 -- If there are no more tasks remaining, then advance to the next tick.
 popOrTick :: HasCallStack => Schedule t -> (Maybe (Task t, t), Schedule t)
-popOrTick s0@(Schedule now0 tasks0 running) = case running of
+popOrTick s0@(Schedule now0 tasks0 pending0 running) = case running of
   Just _  -> error "tried to pop tick while task was running"
   Nothing -> case RM.dequeue now0 tasks0 of
     (Nothing, _) -> (Nothing, s0 { now = succ now0 })
     (Just (d, tParams), tasks1) ->
-      (Just (Task d, tParams), s0 { tasks = tasks1 })
+      let pending1 = S.delete (Task d) pending0
+      in  (Just (Task d, tParams), s0 { tasks = tasks1, pending = pending1 })
 
 -- | Lock the schedule before running a particular task.
 --
 -- This prevents popOrTick from being called, or other tasks from running.
 -- It is not re-entrant; only one task is supposed to run at once.
-acquireTask :: HasCallStack => Task t -> Schedule t -> Schedule t
-acquireTask t s = case running s of
+acquireTask :: HasCallStack => (Task t, t) -> Schedule t -> Schedule t
+acquireTask k s = case running s of
   Just _ -> error "tried to acquire on unreleased task"
-  _      -> s { running = Just t }
+  _      -> s { running = Just k }
 
 -- | Unlock the schedule after running a particular task.
 --
@@ -129,5 +162,5 @@ acquireTask t s = case running s of
 -- It is not re-entrant; only one task is supposed to run at once.
 releaseTask :: HasCallStack => Task t -> Schedule t -> Schedule t
 releaseTask t s = case running s of
-  Just t' | t' == t -> s { running = Nothing }
-  _                 -> error "tried to release on unacquired task"
+  Just (t', _) | t' == t -> s { running = Nothing }
+  _                      -> error "tried to release on unacquired task"

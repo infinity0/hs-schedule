@@ -92,10 +92,10 @@ runTick runTickTask = whileJustA $ proc tick -> do
   r' <- schedule (const popOrTick) -< ()
   case r' of
     Nothing     -> returnA -< Nothing
-    Just (c, t) -> do
-      () <- schedule' acquireTask -< c
-      r  <- runTickTask -< (tick, t) -- TODO: catch Haskell exceptions here
-      () <- schedule' releaseTask -< c
+    Just (t, p) -> do
+      () <- schedule' acquireTask -< (t, p)
+      r  <- runTickTask -< (tick, p) -- TODO: catch Haskell exceptions here
+      () <- schedule' releaseTask -< t
       returnA -< Just r
 
 runTicksTo

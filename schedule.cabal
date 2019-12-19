@@ -69,6 +69,7 @@ Library
       -- for Data.Rsv.*
       , containers
       , lens
+      , text
       -- for Control.Clock.System
       , async
       , safe
