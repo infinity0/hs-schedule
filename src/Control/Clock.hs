@@ -15,7 +15,7 @@ import           Data.Schedule (Tick, TickDelta)
 
 {-| A maybe-impure supplier of time, to a pure scheduled computation.
 
-    The type 'c' is the computational context where clock operations occur,
+    The type @c@ is the computational context where clock operations occur,
     e.g. a 'Monad' such as 'IO'.
 
     Clock implementations /must/ be monotic. See "System.Time.Monotonic" for an

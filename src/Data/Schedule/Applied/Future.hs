@@ -20,9 +20,10 @@ import           Control.Lens.TH                  (makeLensesFor, makePrisms)
 import           Control.Monad.Trans.State.Strict (runState, state)
 import           Data.Function                    ((&))
 import           Data.Functor.Compose             (Compose (..))
-import           Data.Schedule                    (LiveTask, Schedule,
-                                                   TickDelta, after, cancel_)
+import           Data.Schedule                    (Schedule, Task, TickDelta,
+                                                   after, cancel_)
 import           GHC.Generics                     (Generic)
+import           GHC.Stack                        (HasCallStack)
 import           Safe                             (fromJustNote)
 
 
@@ -32,31 +33,31 @@ type OMap k v = M.Map k v -- TODO: ideally should be map ordered by insertion ti
 data TimedResult tk r =
     TimedOut !tk
   | GotResult !r
-   deriving (Eq, Show, Generic)
+   deriving (Show, Read, Generic, Eq, Ord)
 
 data SFuture wo ro =
     SFWaiting !(OSet wo)
     -- ^ SExpects waiting on us
   | SFResult !ro
     -- ^ Result of the Future
-  deriving (Eq, Show, Generic)
+  deriving (Show, Read, Generic, Eq, Ord)
 makePrisms ''SFuture
 
 data SExpect wi ri tk = SExpect {
-    seExpects :: !(OMap wi (LiveTask tk))
+    seExpects :: !(OMap wi (Task tk))
     -- ^ SFutures we're waiting for, with our own timeout.
     --
     -- Note that the SFuture might have its own separate timeout which is
-    -- different; this 't' timeout is when *we* stop waiting on it.
+    -- different; this @t@ timeout is when *we* stop waiting on it.
     --
-    -- For example if (i ~ TimedResult a) and our timeout is longer than their
-    -- timeout then 'seResults' will get a 'GotResult (TimedOut t)'.
+    -- For example if @(i ~ TimedResult a)@ and our timeout is longer than
+    -- their timeout then 'seResults' will get a @GotResult (TimedOut t)@.
   , seResults :: !(OMap wi (TimedResult tk ri))
     -- ^ SFutures that have completed, with the result. This is meant to be a
     -- holding place and the caller of this should move items from here into
     -- some other place to indicate that the results have been processed, so
     -- that if it is called twice it does not process these results twice.
-  } deriving (Eq, Show, Generic)
+  } deriving (Show, Read, Generic, Eq, Ord)
 makeLensesFor ((\x -> (x, "_" <> x)) <$> ["seExpects", "seResults"]) ''SExpect
 
 instance Ord wi => Semigroup (SExpect wi ri tk) where
@@ -66,8 +67,8 @@ instance Ord wi => Semigroup (SExpect wi ri tk) where
 instance Ord wi => Monoid (SExpect wi ri tk) where
   mempty = SExpect mempty mempty
 
-data SFStatus e = Expecting e | NotExpecting deriving (Eq, Show, Generic)
-type SFStatusFull wo tk = SFStatus (OSet wo, LiveTask tk)
+data SFStatus e = Expecting e | NotExpecting deriving (Show, Read, Generic, Eq, Ord)
+type SFStatusFull wo tk = SFStatus (OSet wo, Task tk)
 
 data SFError =
     SFEAlreadyFinished
@@ -75,10 +76,10 @@ data SFError =
         sfePreExpect :: !(SFStatus ())
       , sfePreActual :: !(SFStatus ())
     }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Read, Generic, Eq, Ord)
 
 sCheckStatus
-  :: (Ord wi, Ord wo)
+  :: (HasCallStack, Ord wi, Ord wo)
   => wi
   -> wo
   -> Lens' s (SFuture wo r)
@@ -145,7 +146,7 @@ sExpectCancel sfi sei lsf lse lsch s0 = case status of
   where status = sCheckStatus sfi sei lsf lse s0
 
 sExpectTimeout
-  :: (Ord wi, Ord wo)
+  :: (HasCallStack, Ord wi, Ord wo)
   => tk
   -> wi
   -> wo

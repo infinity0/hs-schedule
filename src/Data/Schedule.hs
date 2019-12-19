@@ -1,13 +1,17 @@
 {-# LANGUAGE LambdaCase #-}
 
-{-| Data structure representing scheduled tasks. -}
+{-| Data structure representing scheduled tasks.
 
+Most of the time you will want the more fully-featured 'Control.Monad.Schedule'
+or 'Control.Arrow.Schedule' modules instead, which re-export this module.
+-}
 module Data.Schedule
   ( Tick
   , TickDelta
-  , LiveTask
+  , Task
   , Schedule
   , newSchedule
+  , checkValidity
   , tickNow
   , tickPrev
   , ticksToIdle

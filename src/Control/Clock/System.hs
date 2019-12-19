@@ -1,5 +1,6 @@
-{-# LANGUAGE LambdaCase #-}
-{-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE FlexibleContexts #-}
+{-# LANGUAGE LambdaCase       #-}
+{-# LANGUAGE RankNTypes       #-}
 
 {-| Implementation of a 'Clock' based on the system monotonic clock. -}
 module Control.Clock.System
@@ -31,6 +32,7 @@ import           Data.Time.Clock                (DiffTime,
                                                  diffTimeToPicoseconds,
                                                  picosecondsToDiffTime)
 import           Data.Void                      (Void)
+import           GHC.Stack                      (HasCallStack)
 
 -- internal
 import           Control.Clock
@@ -53,12 +55,12 @@ newClock1s :: IO (Clock IO)
 newClock1s = newClockPico 1000000000000
 
 -- | Check for a non-negative number.
-checkNonNeg :: (Num a, Ord a, Show a) => a -> a
+checkNonNeg :: (HasCallStack, Num a, Ord a, Show a) => a -> a
 checkNonNeg n =
   if n >= 0 then n else error $ "must be non-negative: " ++ show n
 
 -- | Check for a positive number.
-checkPos :: (Num a, Ord a, Show a) => a -> a
+checkPos :: (HasCallStack, Num a, Ord a, Show a) => a -> a
 checkPos n = if n > 0 then n else error $ "must be positive: " ++ show n
 
 {-| Convert a system monotonic 'System.Time.Monotonic.Clock' into an abstract
@@ -88,7 +90,7 @@ clockDelayPico :: Integer -> IO ()
 clockDelayPico d = T.delay $ picosecondsToDiffTime $ checkNonNeg d
 
 -- assert that a writeTBQueue is non-blocking
-writeTBQueue' :: TBQueue a -> a -> STM ()
+writeTBQueue' :: HasCallStack => TBQueue a -> a -> STM ()
 writeTBQueue' q r = do
   e <- isEmptyTBQueue q
   unless e $ error "failed to assert non-blocking write on TBQueue"

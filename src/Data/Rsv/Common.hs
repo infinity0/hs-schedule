@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Data.Rsv.Common
@@ -20,6 +21,7 @@ where
 import           Data.Maybe             (fromMaybe)
 import           Data.Word              (Word64)
 import           GHC.Generics           (Generic)
+import           GHC.Stack              (HasCallStack)
 
 import           Data.Sequence          (Seq (..), (|>))
 import qualified Data.Sequence.Internal as Seq
@@ -27,9 +29,9 @@ import qualified Data.Sequence.Internal as Seq
 
 -- TODO: this could be more secure like using a PRNG or something
 newtype RHandles = RHandles { getNextHandle :: RHandle }
-  deriving (Eq, Show, Generic)
+  deriving (Show, Read, Generic, Eq)
 newtype RHandle = RHandle { getHandle :: Word64 }
-  deriving (Eq, Show, Generic, Enum)
+  deriving (Show, Read, Generic, Eq, Ord, Enum)
 
 newHandles :: RHandles
 newHandles = RHandles (RHandle 0)
@@ -41,8 +43,8 @@ withHandle
   :: ((RHandle, i) -> c -> c) -> i -> (RHandles, c) -> (RHandle, (RHandles, c))
 withHandle doWith item (handles0, container0) =
   let (handle, handles1) = nextHandle handles0
-  in  let container1 = doWith (handle, item) container0
-      in  (handle, (handles1, container1))
+      container1         = doWith (handle, item) container0
+  in  (handle, (handles1, container1))
 
 alInsert :: k -> a -> Maybe [(k, a)] -> Maybe [(k, a)]
 alInsert k' v' slm = Just $ (k', v') : fromMaybe [] slm
@@ -57,22 +59,19 @@ alDelete' _ [] = (Nothing, [])
 alDelete' idx (h : t) =
   if fst h == idx then (Just (snd h), t) else (h :) <$> alDelete' idx t
 
-sEnqueue :: a -> Maybe (Seq a) -> Maybe (Seq a)
-sEnqueue x slm = Just $ fromMaybe mempty slm |> x
+sEnqueue :: a -> Seq a -> Seq a
+sEnqueue x slm = slm |> x
 
-sUnqueue :: Eq k => k -> Maybe (Seq (k, a)) -> (Maybe a, Maybe (Seq (k, a)))
-sUnqueue idx' slm = (snd <$> found', others')
+sUnqueue :: (HasCallStack, Eq k) => k -> Seq (k, a) -> (Maybe a, Seq (k, a))
+sUnqueue idx' slm = (snd <$> found', others)
  where
-  (Seq.Seq found, others) =
-    Seq.partition ((== idx') . fst) $ fromMaybe mempty slm
-  found' = case found of
+  -- TODO: this is O(n); maybe it should be more efficient...
+  (Seq.Seq found, others) = Seq.partition ((== idx') . fst) $ slm
+  found'                  = case found of
     Seq.EmptyT              -> Nothing
     Seq.Single (Seq.Elem x) -> Just x
     _                       -> error "delete found more than one key"
-  others' = case others of
-    Seq.Empty -> Nothing
-    x         -> Just x
 
-sDequeue :: Maybe (Seq a) -> (Maybe a, Maybe (Seq a))
-sDequeue (Just (h :<| t)) = (Just h, Just t)
-sDequeue _                = (Nothing, Nothing)
+sDequeue :: Seq a -> (Maybe a, Seq a)
+sDequeue (h :<| t) = (Just h, t)
+sDequeue Seq.Empty = (Nothing, Seq.Empty)

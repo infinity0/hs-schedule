@@ -25,7 +25,8 @@ module Data.Rsv.RMMap
 where
 
 -- external
-import           Control.Lens    (Iso, at, iso, makeLensesFor, (%%~), (%~), (&))
+import           Control.Lens    (Iso, anon, at, iso, makeLensesFor, (%%~),
+                                  (%~), (&))
 import           Data.Bifunctor  (first)
 import           GHC.Generics    (Generic)
 
@@ -41,7 +42,7 @@ type Entries a = Seq (RHandle, a)
 data RMMap k a = RMMap {
   handles :: !RHandles,
   content :: !(M.Map k (Entries a))
-} deriving (Eq, Show, Generic)
+} deriving (Show, Read, Generic, Eq)
 makeLensesFor ((\x -> (x, x ++ "_")) <$> ["handles", "content"]) ''RMMap
 
 toPair
@@ -64,7 +65,7 @@ m ! k = case M.lookup k $ content m of
   Nothing -> mempty
 
 data Delete k a = Delete !k !RHandle
-  deriving (Eq, Show, Generic)
+  deriving (Show, Read, Generic, Eq, Ord)
 
 -- | Append an item on a key, returning a handle to remove it with.
 -- The same item may be added twice, in which case it will occupy multiple
@@ -74,14 +75,17 @@ enqueue i@(k, _) m = m & toPair %%~ withHandle enq i & first (Delete k)
  where
   enq
     :: Ord k => (RHandle, (k, a)) -> M.Map k (Entries a) -> M.Map k (Entries a)
-  enq (h', (k', v')) m' = m' & at k' %~ sEnqueue (h', v')
+  enq (h', (k', v')) m' = m' & at k' . anon mempty null %~ sEnqueue (h', v')
 
 -- | Delete an item corresponding to a given handle.
 -- If the item was already removed, 'Nothing' is returned instead.
 unqueue :: Ord k => Delete k a -> RMMap k a -> (Maybe a, RMMap k a)
-unqueue (Delete k idx) m = m & content_ . at k %%~ sUnqueue idx
+unqueue (Delete k idx) m =
+  m & content_ . at k . anon mempty null %%~ sUnqueue idx
 
 -- | Remove an item from a key, from the front. Return Nothing if key is empty.
 dequeue :: Ord k => k -> RMMap k a -> (Maybe (Delete k a, a), RMMap k a)
 dequeue k m =
-  m & content_ . at k %%~ sDequeue & first (fmap (first (Delete k)))
+  m
+    & (content_ . at k . anon mempty null %%~ sDequeue)
+    & (first (fmap (first (Delete k))))

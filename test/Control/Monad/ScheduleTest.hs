@@ -69,6 +69,7 @@ smoke mkRecv runWithNew runSched = do
   assertBool "schedule.now" $ now s > top
   assertEqual "schedule.tasks" (empty { handles = handles (tasks s) }) (tasks s)
   assertEqual "schedule.*" (newSchedule { now = now s, tasks = tasks s }) s
+  assertEqual "schedule valid" (checkValidity s) Nothing
  where
   countdown _ x = do
     when (x > 0) $ do

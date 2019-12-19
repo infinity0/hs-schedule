@@ -36,7 +36,7 @@ data RList a = RList {
   content :: ![(RHandle, a)]
     -- earliest inserted is at the tail
     -- external views must reverse this ordering
-} deriving (Eq, Show, Generic)
+} deriving (Show, Read, Generic, Eq)
 makeLensesFor ((\x -> (x, x ++ "_")) <$> ["handles", "content"]) ''RList
 
 toPair
@@ -58,7 +58,7 @@ toList :: RList a -> [a]
 toList l = snd <$> reverse (content l)
 
 newtype Delete a = Delete RHandle
-  deriving (Eq, Show, Generic)
+  deriving (Show, Read, Generic, Eq, Ord)
 
 -- | Add an item to the list, returning a handle to delete it with.
 -- The same item may be added twice, in which case it will occupy multiple

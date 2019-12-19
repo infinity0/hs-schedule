@@ -66,7 +66,7 @@ schedule
   :: Arrow a => (i -> Schedule t -> (o, Schedule t)) -> ScheduleArr t a i o
 schedule = state . uncurry
 
--- | Run a schedule modification like 'acquireLiveTask' or 'releaseLiveTask'.
+-- | Run a schedule modification like 'acquireTask' or 'releaseTask'.
 schedule' :: Arrow a => (i -> Schedule t -> Schedule t) -> ScheduleArr t a i ()
 schedule' = state . (((), ) .) . uncurry
 
@@ -93,9 +93,9 @@ runTick runTickTask = whileJustA $ proc tick -> do
   case r' of
     Nothing     -> returnA -< Nothing
     Just (c, t) -> do
-      () <- schedule' acquireLiveTask -< c
+      () <- schedule' acquireTask -< c
       r  <- runTickTask -< (tick, t) -- TODO: catch Haskell exceptions here
-      () <- schedule' releaseLiveTask -< c
+      () <- schedule' releaseTask -< c
       returnA -< Just r
 
 runTicksTo

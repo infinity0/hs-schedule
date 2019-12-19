@@ -46,9 +46,9 @@ type RunSched t m = forall a . (Schedule t -> (a, Schedule t)) -> m a
 runTick :: (Monad m, Monoid a) => RunSched t m -> (t -> m a) -> m a
 runTick runS runTickTask = whileJustM $ runMaybeT $ do
   MaybeT (runS popOrTick) >>= \(c, t) -> lift $ do
-    runS $ modST $ acquireLiveTask c
+    runS $ modST $ acquireTask c
     r <- runTickTask t -- TODO: catch Haskell exceptions here
-    runS $ modST $ releaseLiveTask c
+    runS $ modST $ releaseTask c
     pure r
 
 runTicksTo
@@ -76,12 +76,12 @@ mkOutput runS runTask runInput = runTicksTo runS runTask `either` runInput
 
 -- | A more general version of mkOutput that uses a prism-like optic.
 --
--- Given an input executor 'it -> m a' where one branch of the 'it' type has
--- a '(Tick, t)' tuple that represents individual input tasks, return a
--- convenience wrapper executor of type 'i -> m a' where the 'i' type only
--- has a 'Tick'. When the wrapper executor receives these 'Tick' inputs, it
--- automatically resolves the relevant tasks of type 't' that are active for
--- that 'Tick', and passes each tuple in sequence to the wrapped executor.
+-- Given an input executor @it -> m a@ where one branch of the @it@ type has
+-- a @(Tick, t)@ tuple that represents individual input tasks, return a
+-- convenience wrapper executor of type @i -> m a@ where the @i@ type only
+-- has a @Tick@. When the wrapper executor receives these @Tick@ inputs, it
+-- automatically resolves the relevant tasks of type @t@ that are active for
+-- that @Tick@, and passes each tuple in sequence to the wrapped executor.
 tickTask
   :: (Monad m, Monoid a)
   => RunSched t m
