@@ -10,19 +10,8 @@ import           Data.Functor.Identity            (runIdentity)
 import           Data.Maybe                       (isJust)
 
 -- internal
-import qualified Data.Rsv.RList                   as RL
 import qualified Data.Rsv.RMMap                   as RM
 
-
--- | Basic usage example for 'RList'
---
--- >>> rListExample0
--- True
-rListExample0 :: Bool
-rListExample0 = runIdentity $ (`evalStateT` RL.empty) $ do
-  sDelete           <- state $ RL.insert $ const "my callback"
-  notAlreadyRemoved <- state $ RL.delete sDelete
-  return $ isJust notAlreadyRemoved
 
 -- | Basic usage example for 'RMMap'
 --

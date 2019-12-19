@@ -54,9 +54,18 @@ newSchedule =
 
 -- | Check the schedule that its internal invariants all hold.
 --
--- You must run this after deserialising one from untrusted input, e.g. via the
--- 'Read' or 'Generic' instance. A result of "Nothing" means the check passed,
--- otherwise 'Just errmsg' is given back.
+-- You must run this on every instance obtained not via the API functions here.
+-- For example, you must run this on instances obtained via deserialisation,
+-- which in general cannot check the complex invariants maintained by the API
+-- functions. Also, for all 'Task's you obtain via a similarly non-standard
+-- method, including by deserialisation of a parent data structure, you must
+-- run @checkHandle schedule task@.
+--
+-- @Nothing@ means the check passed, else @Just errmsg@ gives a failure reason.
+--
+-- Note: this does not guard against all malicious behaviour, but it does guard
+-- against violation (either malicious or accidental) of the runtime invariants
+-- assumed by this data structure.
 checkValidity :: Schedule t -> Maybe Text
 checkValidity Schedule {..} =
   let tasksValid = RM.checkValidity tasks
@@ -71,6 +80,11 @@ checkValidity Schedule {..} =
           | not nowMatch        -> Just $ pack "has tasks for before now"
           | pending /= pending' -> Just $ pack "inconsistent pending tasks"
           | otherwise           -> Nothing
+
+-- | Check that an existing task is consistent with the current state of the
+-- structure, i.e. it is not a task that could be generated in the future.
+checkTask :: Schedule t -> Task t -> Bool
+checkTask sch (Task d) = RM.checkHandle (tasks sch) d
 
 -- | Get the current tick, whose tasks have not all run yet.
 --
@@ -106,6 +120,22 @@ taskStatus t@(Task d) Schedule {..} = if S.member t pending
 --
 -- This is relative to 'tickNow'; a @0@ delta schedules the task to be run at
 -- the end of the current tick, i.e. as soon as possible but not immediately.
+--
+-- If your task params needs to refer to the task itself, you may achieve this
+-- by using the standard Haskell "tying the knot" technique, e.g.:
+--
+-- >>> data TPar = TPar !(Task TPar) deriving (Show, Eq)
+-- >>> s = newSchedule
+-- >>> let (t, s') = after 1 (TPar t) s
+-- >>> t
+-- Task (Delete 1 (RHandle {getHandle = 0}))
+-- >>> taskStatus t s
+-- TaskNotPending
+-- >>> taskStatus t s'
+-- TaskPending 1 (TPar (Task (Delete 1 (RHandle {getHandle = 0}))))
+-- >>> taskStatus t s' == TaskPending 1 (TPar t)
+-- True
+--
 after :: TickDelta -> t -> Schedule t -> (Task t, Schedule t)
 after tDelta tParams s0@(Schedule now tasks0 pending0 _) =
   let tick        = now + toInteger tDelta

@@ -69,8 +69,6 @@ Common generic
     -O2
   GHC-Prof-Options: -fprof-auto
 
--- use `cabal haddock --hyperlink-source` to make sure that our hyperlinks to
--- our example source code are generated correctly.
 Library
   Import: generic
   Build-Depends:
@@ -100,9 +98,7 @@ Library
     , Data.Schedule
     , Data.Schedule.Internal
     -- the below modules are exposed for testing only
-    , Data.Rsv
     , Data.Rsv.Common
-    , Data.Rsv.RList
     , Data.Rsv.RMMap
 
 Test-Suite doctests
@@ -132,4 +128,3 @@ Test-Suite unit
   Other-Modules:
       Control.Monad.ScheduleTest
     , Data.Rsv.Example
-    , Data.Rsv.ExampleRecursive
