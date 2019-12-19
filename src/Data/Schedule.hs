@@ -3,8 +3,8 @@
 
 {-| Data structure representing scheduled tasks.
 
-Most of the time you will want the more fully-featured 'Control.Monad.Schedule'
-or 'Control.Arrow.Schedule' modules instead, which re-export this module.
+Most of the time you will want the more fully-featured "Control.Monad.Schedule"
+or "Control.Arrow.Schedule" modules instead, which re-export this module.
 -}
 module Data.Schedule
   ( Tick
@@ -22,7 +22,8 @@ module Data.Schedule
   , cancel
   , cancel_
   , renew
-  -- general monad / ST utils to be exported to some other library
+  -- | = Other general utilities
+  -- General monad / state-transition utils to be exported to another library
   , whileJustM
   , modST
   , getST
@@ -35,6 +36,8 @@ where
 import           Data.Schedule.Internal
 
 
+-- | Run an action, accumulating its monoid result until it returns @Nothing@.
+--
 -- TODO: export to upstream extra
 whileJustM :: (Monad m, Monoid a) => m (Maybe a) -> m a
 whileJustM act = go mempty

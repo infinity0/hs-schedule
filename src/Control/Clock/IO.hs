@@ -38,11 +38,11 @@ import           GHC.Stack                      (HasCallStack)
 import           Control.Clock
 
 
--- | Create a new clock ticking at a given rate.
+-- | Create a new clock ticking at a given interval.
 newClock :: DiffTime -> IO (Clock IO)
 newClock intv = convClock intv <$> T.newClock
 
--- | Create a new clock ticking at a given rate.
+-- | Create a new clock ticking at a given interval in picoseconds.
 newClockPico :: Integer -> IO (Clock IO)
 newClockPico = newClock . picosecondsToDiffTime
 
@@ -63,14 +63,14 @@ checkNonNeg n =
 checkPos :: (HasCallStack, Num a, Ord a, Show a) => a -> a
 checkPos n = if n > 0 then n else error $ "must be positive: " ++ show n
 
-{-| Convert a system monotonic 'System.Time.Monotonic.Clock' into an abstract
-    'Clock' for scheduled computations, ticking at the given rate.
+{-| Convert a system monotonic "System.Time.Monotonic.Clock" into an abstract
+    'Clock' for scheduled computations, ticking at the given interval.
 
     The first argument is the length of each tick.
 -}
 convClock :: DiffTime -> T.Clock -> Clock IO
-convClock rate c =
-  let r  = diffTimeToPicoseconds $ checkPos rate
+convClock intv c =
+  let r  = diffTimeToPicoseconds $ checkPos intv
       c' = Clock
         { clockNow   = (`div` r) <$> clockNowPico c
         , clockDelay = \d -> when (d > 0) $ do

@@ -1,6 +1,6 @@
 {-# OPTIONS_GHC -fno-warn-type-defaults #-}
 
-{-| Examples for various 'Data.Rsv' structures. -}
+{-| Examples for various "Data.Rsv" structures. -}
 
 module Data.Rsv.Example where
 

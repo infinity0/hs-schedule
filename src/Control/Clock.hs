@@ -18,7 +18,7 @@ import           Data.Schedule (Tick, TickDelta)
     The type @c@ is the computational context where clock operations occur,
     e.g. a 'Monad' such as 'IO'.
 
-    Clock implementations /must/ be monotonic. See 'System.Time.Monotonic' for
+    Clock implementations /must/ be monotonic. See "System.Time.Monotonic" for
     an example on how to wrap non-monotonic clocks to be monotonic.
 -}
 data Clock c = Clock {

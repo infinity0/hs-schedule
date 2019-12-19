@@ -101,7 +101,7 @@ tickPrev = pred . now
 -- | Get the number of ticks until the next scheduled task.
 --
 -- This may be used by an impure runtime environment to set an actual timeout;
--- see 'Control.Clock' for details.
+-- see "Control.Clock" for a starting point.
 ticksToIdle :: Schedule t -> Maybe TickDelta
 ticksToIdle Schedule {..} = do
   (m, _) <- M.lookupMin (RM.content tasks)
@@ -126,7 +126,7 @@ taskStatus t@(Task d) Schedule {..} = if S.member t pending
 --
 -- >>> data TPar = TPar !(Task TPar) deriving (Show, Eq)
 -- >>> s = newSchedule
--- >>> let (t, s') = after 1 (TPar t) s
+-- >>> let (t, s') = after 1 (TPar t) s -- @t@ on LHS & RHS, tying the knot
 -- >>> t
 -- Task (Delete 1 (RHandle {getHandle = 0}))
 -- >>> taskStatus t s
