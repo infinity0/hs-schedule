@@ -16,7 +16,7 @@ import           Control.Monad.Trans.State.Strict (StateT (..), state)
 import           Data.Primitive.MutVar            (newMutVar, readMutVar)
 
 -- internal
-import           Control.Clock.System
+import           Control.Clock.IO
 import           Control.Monad.Primitive.Extra
 import           Control.Monad.Schedule
 import           Data.Rsv.RMMap                   (RMMap (..), empty)

@@ -1,45 +1,60 @@
 Cabal-Version: 2.2
 Name: schedule
-Version: 0.1
+Version: 0.1.0.0
 Build-Type: Simple
 License: GPL-3.0-or-later
 License-File: COPYING
+Extra-Source-Files: LICENSE.GPL-3
 Copyright: 2016-2019 Ximin Luo
 Author: Ximin Luo
 Maintainer: infinity0@pwned.gg
-Stability: alpha
 Homepage: https://github.com/infinity0/hs-schedule
 Bug-Reports: https://github.com/infinity0/hs-schedule/issues
-Synopsis: Schedule sub-computations to run later, in a pure way
+Synopsis: Pure deterministic scheduled computations
 Description:
-  Pure co-operative scheduled computations.
+  Schedule computations to run later, in a pure and deterministic way.
   .
-  Co-operative means that we do not interrupt computations that don't expect to
-  be interrupted, such as 3rd-party libraries that have no knowledge of this
-  monad. In other words, we don't throw asynchronous exceptions, and there is
-  no "background executor" that automatically runs these tasks, interleaving
-  them with your main computation in an order that would be hard to predict.
+  This library is pure replacement for 'System.Timeout'. The latter has several
+  downsides that are at-odds with a Haskell or purely functional paradigm: (1)
+  it is not deterministic, (2) the timeout state is not serialisable, and (3)
+  the timeout functionality must be shared between unrelated components, making
+  it harder to design components that are easily decomposable and reusable.
   .
-  Motivation:
+  This library solves both problems by implementing the vast majority of the
+  schedule logic as a pure and deterministic computation on dumb data, with the
+  callbacks to be run represented in defunctionalised serialisable form. The
+  only impure part needed to "drive" the computation is a system-supplied
+  clock, similar to any other IO such as network traffic or user commands.
   .
-  For many secure communications protocols, we want a guarantee of freshness. But
-  impure timeout-based code can be hard to analyse, and can have very complex
-  interactions with the rest of the protocol system. That's where this library
-  comes in, and that's why we made the design choices stated above, such as
-  avoiding of interrupts and requiring explicit user-controlled task execution.
+  This library is not suitable for interleaving together several computations
+  that are competing for computational resources - it does no pre-emption.
+  Typically when writing a secure protocol, you can assume that the components
+  comprising your secure-protocol-process are not fighting against each other
+  for resources. To run multiple competing processes concurrently, simply run
+  them in their own Haskell (or OS) threads.
   .
-  Although motivated by these security goals, we intend this library to be a
-  generally-useful tool, that has the power to replace impure timeout mechanisms
-  like "System.Timeout" where appropriate.
+  The original motivation for this library comes from the design of secure
+  communications protocols and decentralised distributed systems. In these
+  contexts one must often set local timeouts for remote events that may or may
+  not happen in the future, or periodically synchronise local views of shared
+  data with remote peers. However this library is not tied to these use-cases
+  and is a general replacement for System.Timeout.
   .
-  See "Control.Monad.Schedule" for the main API of this library.
-Category: Control, Schedule, Cron, Later, After, Delay, Timer, Timeout
+  See 'Control.Monad.Schedule' for the main monadic API of this library.
+  .
+  See 'Control.Arrow.Schedule' for the main arrow-based API of this library.
+  .
+  See 'Control.Clock.IO' for various ways of combining clock inputs with other
+  inputs and injecting them into your pure computations.
+  .
+  See @Control.Schedule.*@ for higher-level utilities that one often wants to
+  use on top of a timeout primitive, such as futures and monitors.
+Category: Control, Schedule, Delay, Timeout
 Tested-With: GHC >= 8.6
-Extra-Source-Files: LICENSE.GPL-3
 
 Source-Repository head
-    Type: git
-    Location: https://github.com/infinity0/hs-schedule
+  Type: git
+  Location: https://github.com/infinity0/hs-schedule
 
 Common generic
   Default-Language: Haskell2010
@@ -57,63 +72,64 @@ Common generic
 -- use `cabal haddock --hyperlink-source` to make sure that our hyperlinks to
 -- our example source code are generated correctly.
 Library
-    Import: generic
-    Build-Depends:
-        extra
-      -- for Data.Rsv.*
-      , containers
-      , lens
-      , text
-      -- for Control.Clock.System
-      , async
-      , safe
-      , stm
-      , time                    >= 1.5
-      , system-time-monotonic   >= 0.2
-      -- for Control.Monad.Primitive.*
-      , primitive
-      -- for Data.Schedule.Applied
-      , transformers
-    HS-Source-Dirs: src
-    Exposed-Modules:
-        Control.Clock
-      , Control.Clock.System
-      , Control.Arrow.Schedule
-      , Control.Monad.Schedule
-      , Control.Monad.Primitive.Extra
-      , Data.Rsv
-      , Data.Rsv.Common
-      , Data.Rsv.RList
-      , Data.Rsv.RMMap
-      , Data.Schedule
-      , Data.Schedule.Applied.Future
-      , Data.Schedule.Internal
+  Import: generic
+  Build-Depends:
+      extra
+    -- for Data.Rsv.*
+    , containers
+    , lens
+    , text
+    -- for Control.Clock.System
+    , async
+    , safe
+    , stm
+    , time                    >= 1.5
+    , system-time-monotonic   >= 0.2
+    -- for Control.Monad.Primitive.*
+    , primitive
+    -- for Data.Schedule.Applied
+    , transformers
+  HS-Source-Dirs: src
+  Exposed-Modules:
+      Control.Clock
+    , Control.Clock.IO
+    , Control.Arrow.Schedule
+    , Control.Monad.Schedule
+    , Control.Monad.Primitive.Extra
+    , Control.Schedule.Future
+    , Data.Schedule
+    , Data.Schedule.Internal
+    -- the below modules are exposed for testing only
+    , Data.Rsv
+    , Data.Rsv.Common
+    , Data.Rsv.RList
+    , Data.Rsv.RMMap
 
 Test-Suite doctests
-    Import: generic
-    GHC-Options: -threaded
-    Build-Depends:
-        doctest
-      , schedule
-    HS-Source-Dirs: test
-    Type: exitcode-stdio-1.0
-    Main-Is: DocTests.hs
+  Import: generic
+  GHC-Options: -threaded
+  Build-Depends:
+      doctest
+    , schedule
+  HS-Source-Dirs: test
+  Type: exitcode-stdio-1.0
+  Main-Is: DocTests.hs
 
 Test-Suite unit
-    Import: generic
-    GHC-Options: -threaded
-    Build-Depends:
-        tasty
-      , tasty-quickcheck
-      , tasty-hunit
-      , checkers
-      , primitive
-      , transformers
-      , schedule
-    HS-Source-Dirs: test
-    Type: exitcode-stdio-1.0
-    Main-Is: UnitTests.hs
-    Other-Modules:
-        Control.Monad.ScheduleTest
-      , Data.Rsv.Example
-      , Data.Rsv.ExampleRecursive
+  Import: generic
+  GHC-Options: -threaded
+  Build-Depends:
+      tasty
+    , tasty-quickcheck
+    , tasty-hunit
+    , checkers
+    , primitive
+    , transformers
+    , schedule
+  HS-Source-Dirs: test
+  Type: exitcode-stdio-1.0
+  Main-Is: UnitTests.hs
+  Other-Modules:
+      Control.Monad.ScheduleTest
+    , Data.Rsv.Example
+    , Data.Rsv.ExampleRecursive

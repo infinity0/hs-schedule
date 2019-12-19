@@ -2,8 +2,8 @@
 {-# LANGUAGE LambdaCase       #-}
 {-# LANGUAGE RankNTypes       #-}
 
-{-| Implementation of a 'Clock' based on the system monotonic clock. -}
-module Control.Clock.System
+{-| Implementations of 'Clock' in the 'IO' monad. -}
+module Control.Clock.IO
   ( newClock
   , newClockPico
   , newClock1ms

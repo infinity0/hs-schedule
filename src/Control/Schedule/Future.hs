@@ -7,7 +7,7 @@
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TupleSections     #-}
 
-module Data.Schedule.Applied.Future where
+module Control.Schedule.Future where
 
 import qualified Data.Map.Strict                  as M
 import qualified Data.Set                         as S
