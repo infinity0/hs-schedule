@@ -1,4 +1,5 @@
 {-# LANGUAGE BlockArguments #-}
+{-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE RankNTypes     #-}
 
 {-| Run scheduled computations in any (stateful) monad, using an adapter. -}
@@ -14,12 +15,10 @@ module Control.Monad.Schedule
 where
 
 -- external
-import           Control.Monad.Extra       (whenMaybe)
-import           Control.Monad.Trans.Class (MonadTrans (lift))
-import           Control.Monad.Trans.Maybe (MaybeT (MaybeT, runMaybeT))
-import           Data.Either               (either)
-import           Data.Functor.Identity     (Identity (..))
-import           Data.Maybe                (fromMaybe)
+import           Control.Monad.Extra    (whenMaybe)
+import           Data.Either            (either)
+import           Data.Functor.Identity  (Identity (..))
+import           Data.Maybe             (fromMaybe)
 
 -- internal
 import           Data.Schedule
@@ -44,12 +43,14 @@ import           Data.Schedule.Internal
 type RunSched t m = forall a . (Schedule t -> (a, Schedule t)) -> m a
 
 runTick :: (Monad m, Monoid a) => RunSched t m -> (t -> m a) -> m a
-runTick runS runTickTask = whileJustM $ runMaybeT $ do
-  MaybeT (runS popOrTick) >>= \(t, p) -> lift $ do
-    runS $ modST $ acquireTask (t, p)
-    r <- runTickTask p -- TODO: catch Haskell exceptions here
-    runS $ modST $ releaseTask t
-    pure r
+runTick runS runTickTask = whileJustM $ do
+  runS popOrTick >>= \case
+    Nothing     -> pure Nothing
+    Just (t, p) -> do
+      runS $ modST $ acquireTask (t, p)
+      r <- runTickTask p -- TODO: catch Haskell exceptions here
+      runS $ modST $ releaseTask t
+      pure (Just r)
 
 runTicksTo
   :: (Monad m, Monoid a) => RunSched t m -> (Tick -> t -> m a) -> Tick -> m a

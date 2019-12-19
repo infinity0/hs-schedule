@@ -1,4 +1,5 @@
-{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE LambdaCase    #-}
+{-# LANGUAGE TupleSections #-}
 
 {-| Data structure representing scheduled tasks.
 
@@ -25,10 +26,14 @@ module Data.Schedule
   , whileJustM
   , modST
   , getST
+  , stA
+  , imodA
+  , getA
   )
 where
 
 import           Data.Schedule.Internal
+
 
 -- TODO: export to upstream extra
 whileJustM :: (Monad m, Monoid a) => m (Maybe a) -> m a
@@ -39,9 +44,26 @@ whileJustM act = go mempty
     Nothing -> pure accum
 
 -- | Convert a modification function into a state transition function.
-modST :: (Schedule t -> Schedule t) -> (Schedule t -> ((), Schedule t))
+modST :: (s -> s) -> (s -> ((), s))
 modST f s = ((), f s)
+{-# INLINE modST #-}
 
 -- | Convert a getter function into a state transition function.
-getST :: (Schedule t -> a) -> (Schedule t -> (a, Schedule t))
+getST :: (s -> o) -> (s -> (o, s))
 getST f s = (f s, s)
+{-# INLINE getST #-}
+
+-- | Convert a state transition function into a state transition arrow.
+stA :: (s -> os) -> ((i, s) -> os)
+stA f = f . snd
+{-# INLINE stA #-}
+
+-- | Convert a modification arrow into a state transition arrow.
+imodA :: (i -> s -> s) -> ((i, s) -> ((), s))
+imodA f = ((), ) . uncurry f
+{-# INLINE imodA #-}
+
+-- | Convert a getter function into a state transition arrow.
+getA :: (s -> a) -> ((i, s) -> (a, s))
+getA f = getST f . snd
+{-# INLINE getA #-}

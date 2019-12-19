@@ -32,7 +32,7 @@ Description:
   generally-useful tool, that has the power to replace impure timeout mechanisms
   like "System.Timeout" where appropriate.
   .
-  See "Control.Monad.Trans.Schedule" for the main API of this library.
+  See "Control.Monad.Schedule" for the main API of this library.
 Category: Control, Schedule, Cron, Later, After, Delay, Timer, Timeout
 Tested-With: GHC >= 8.6
 Extra-Source-Files: LICENSE.GPL-3
@@ -60,12 +60,6 @@ Library
     Import: generic
     Build-Depends:
         extra
-      -- for Control.Arrow.*
-      , arrows
-      -- for Control.Monad.Trans.*
-      , transformers
-      -- for Control.Monad.Primitive.*
-      , primitive
       -- for Data.Rsv.*
       , containers
       , lens
@@ -76,11 +70,15 @@ Library
       , stm
       , time                    >= 1.5
       , system-time-monotonic   >= 0.2
+      -- for Control.Monad.Primitive.*
+      , primitive
+      -- for Data.Schedule.Applied
+      , transformers
     HS-Source-Dirs: src
     Exposed-Modules:
         Control.Clock
       , Control.Clock.System
-      , Control.Arrow.Transformer.Schedule
+      , Control.Arrow.Schedule
       , Control.Monad.Schedule
       , Control.Monad.Primitive.Extra
       , Data.Rsv
