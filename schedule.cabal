@@ -64,6 +64,7 @@ Maintainer:          infinity0@pwned.gg
 Copyright:           2016-2019 Ximin Luo
 Category:            Control, Schedule, Delay, Time, Timeout
 Tested-With:         GHC >= 8.6
+Extra-Source-Files:  CHANGELOG.md
 
 Source-Repository head
   Type: git
