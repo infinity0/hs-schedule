@@ -15,8 +15,8 @@ the standard Haskell "tying the knot" technique.
 -}
 module Data.Rsv.RMMap
   ( RMMap(..)
-  , handles_
-  , content_
+  , _handles
+  , _content
   , Delete
   , checkValidity
   , checkHandle
@@ -35,7 +35,6 @@ where
 -- external
 import           Control.Lens    (Iso, anon, at, iso, makeLensesFor, (%%~),
                                   (%~), (&))
-import           Control.Monad   (join)
 import           Data.Bifunctor  (first)
 import qualified Data.Foldable   as F (toList)
 import           Data.Maybe      (mapMaybe)
@@ -56,7 +55,7 @@ data RMMap k a = RMMap {
   handles :: !RHandles,
   content :: !(M.Map k (Entries a))
 } deriving (Show, Read, Generic, Eq)
-makeLensesFor ((\x -> (x, x ++ "_")) <$> ["handles", "content"]) ''RMMap
+makeLensesFor ((\x -> (x, "_" <> x)) <$> ["handles", "content"]) ''RMMap
 
 data Delete k a = Delete !k !RHandle
   deriving (Show, Read, Generic, Eq, Ord)
@@ -108,8 +107,8 @@ m ! k = case M.lookup k $ content m of
   Nothing -> mempty
 
 toList :: RMMap k a -> [Delete k a]
-toList (RMMap _ content') = join
-  (fmap (\(k, hh) -> fmap (Delete k . fst) (F.toList hh)) (M.toList content'))
+toList (RMMap _ content') =
+  M.toList content' >>= \(k, hh) -> F.toList hh & fmap (Delete k . fst)
 
 -- | Append an item on a key, returning a handle to remove it with.
 -- The same item may be added twice, in which case it will occupy multiple
@@ -128,9 +127,9 @@ req = first . fmap
 -- If the item was already removed, 'Nothing' is returned instead.
 unqueue :: Ord k => Delete k a -> RMMap k a -> (Maybe (k, a), RMMap k a)
 unqueue (Delete k idx) m =
-  m & content_ . at k . anon mempty null %%~ sUnqueue idx & req (k, )
+  m & _content . at k . anon mempty null %%~ sUnqueue idx & req (k, )
 
 -- | Remove an item from a key, from the front. Return Nothing if key is empty.
 dequeue :: Ord k => k -> RMMap k a -> (Maybe (Delete k a, a), RMMap k a)
 dequeue k m =
-  m & content_ . at k . anon mempty null %%~ sDequeue & req (first (Delete k))
+  m & _content . at k . anon mempty null %%~ sDequeue & req (first (Delete k))

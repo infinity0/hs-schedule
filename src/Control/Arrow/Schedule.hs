@@ -66,7 +66,7 @@ getInput
   -> a TickDelta (Either Tick i)
   -> a i' (Either Tick i)
 getInput runS getTimedInput =
-  runS (getA ticksToIdle) >>> arr (fromMaybe maxBound) >>> getTimedInput
+  runS (getA ticksToIdle) >>> fromMaybe maxBound ^>> getTimedInput
 
 mkOutput
   :: (ArrowChoice a, Monoid o)

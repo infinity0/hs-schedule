@@ -107,7 +107,7 @@ clockWithIO clock action = do
     -- block until we get a request to run action, but don't pop the queue
     atomically $ do
       readTBQueue qi
-      writeTBQueue qi ()
+      writeTBQueue' qi ()
     r <- action
     -- pop the queue after we write the result of action
     atomically $ do
