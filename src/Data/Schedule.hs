@@ -14,6 +14,7 @@ module Data.Schedule
   , Schedule
   , newSchedule
   , checkValidity
+  , checkTask
   , tickNow
   , tickPrev
   , ticksToIdle

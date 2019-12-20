@@ -5,7 +5,7 @@
 
 {-| Extra utilities and abstractions for "Control.Monad.Primitive".
 
-The API structure is stable, but the naming is not very good and may change.
+The API structure is stable, but __the naming is not great and may change__.
 Ideally we would push this upstream into "Control.Monad.Primitive" itself.
 -}
 module Control.Monad.Primitive.Extra

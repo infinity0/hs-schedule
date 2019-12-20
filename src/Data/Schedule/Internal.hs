@@ -58,9 +58,9 @@ newSchedule =
 -- which in general cannot check the complex invariants maintained by the API
 -- functions. Also, for all 'Task's you obtain via a similarly non-standard
 -- method, including by deserialisation of a parent data structure, you must
--- run @checkHandle schedule task@.
+-- run @'checkTask' schedule task@.
 --
--- @Nothing@ means the check passed, else @Just errmsg@ gives a failure reason.
+-- 'Nothing' means the check passed; @'Just' errmsg@ gives a failure reason.
 --
 -- Note: this does not guard against all malicious behaviour, but it does guard
 -- against violation (either malicious or accidental) of the runtime invariants

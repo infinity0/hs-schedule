@@ -1,6 +1,18 @@
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
+{-| Common utilities for implementing /reservation/ data structures.
+
+A /reservation/ data structure is one that allows multiple inserts of the same
+item, by returning a unique handle for each insert operation that must be given
+to the delete operation.
+
+If you need to store the handle together with the item, e.g. so that the item
+knows how to delete itself, this can be achieved via the standard Haskell
+"tying the knot" technique.
+
+__This API is experimental at the moment, and parts of it may change.__
+-}
 module Data.Rsv.Common
   ( RHandles(..)
   , RHandle
@@ -23,7 +35,7 @@ import           GHC.Generics           (Generic)
 import           GHC.Stack              (HasCallStack)
 
 
--- Handle generator. Runtime invariants:
+-- | Handle generator. Runtime invariants:
 --
 -- 1. A handle from one generator is not used in a context that expects a
 -- handle from a different generator. TODO: use a string or other data to

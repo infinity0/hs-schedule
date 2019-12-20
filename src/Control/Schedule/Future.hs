@@ -7,7 +7,7 @@
 
 {-| Pure serialisable futures.
 
-This API is experimental at the moment, and parts of it may change.
+__This API is experimental at the moment, and parts of it may change.__
 -}
 module Control.Schedule.Future where
 

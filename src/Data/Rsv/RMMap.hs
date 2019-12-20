@@ -9,9 +9,9 @@ may be performed on the same key.
 
 A /reservation/ data structure is one that allows multiple inserts of the same
 item, by returning a unique handle for each insert operation that must be given
-to the deletion operation. If you need to store the handle together with the
-item, e.g. so that the item knows how to delete itself, you can achieve this by
-the standard Haskell "tying the knot" technique.
+to the delete operation.
+
+__This API is experimental at the moment, and parts of it may change.__
 -}
 module Data.Rsv.RMMap
   ( RMMap(..)
@@ -75,9 +75,9 @@ toPair = iso (\(RMMap x y) -> (x, y)) (uncurry RMMap)
 -- which in general cannot check the complex invariants maintained by the API
 -- functions. Also, for all handles you obtain via a similarly non-standard
 -- method, including by deserialisation of a parent data structure, you must
--- run @checkHandle map handle@.
+-- run @'checkHandle' map handle@.
 --
--- @Nothing@ means the check passed, else @Just errmsg@ gives a failure reason.
+-- 'Nothing' means the check passed; @'Just' errmsg@ gives a failure reason.
 --
 -- Note: this does not guard against all malicious behaviour, but it does guard
 -- against violation (either malicious or accidental) of the runtime invariants

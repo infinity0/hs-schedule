@@ -80,13 +80,14 @@ mkOutput
   -> (Either Tick i -> m a)
 mkOutput runS runTask runInput = runTicksTo runS runTask `either` runInput
 
--- | A more general version of 'mkOutput' that uses a prism-like optic.
+-- | A more general version of 'mkOutput' that uses a
+-- 'Control.Lens.Prism.Prism'-like optic.
 --
 -- Given an inner computation @it -> m a@ where one branch of the @it@ type has
--- a @(Tick, t)@ tuple that represents individual input tasks, return an outer
--- computation of type @i -> m a@ where the @i@ type only has a @Tick@. When
--- the outer computation receives these @Tick@ inputs, it automatically
--- resolves the relevant tasks of type @t@ that are active for that @Tick@, and
+-- a @('Tick', t)@ tuple representing individual input tasks, return an outer
+-- computation of type @i -> m a@ where the @i@ type only has a 'Tick'. When
+-- the outer computation receives these 'Tick' inputs, it automatically
+-- resolves the relevant tasks of type @t@ that are active for that 'Tick', and
 -- passes each tuple in sequence to the wrapped inner computation.
 tickTask
   :: (Monad m, Monoid a)

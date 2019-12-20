@@ -5,11 +5,11 @@
 {-| Run scheduled computations in any (stateful) arrow, using an adapter.
 
 This module mostly contains utilities for dealing with clock inputs. To get or
-set the existing timeouts, use your 'RunSchedA' adapter on one of the functions
+set the existing timeouts, use your 'RunSched' adapter on one of the functions
 from "Data.Schedule", which this module also re-exports.
 -}
 module Control.Arrow.Schedule
-  ( RunSchedA
+  ( RunSched
   , runTick
   , runTicksTo
   , getInput
@@ -44,10 +44,10 @@ whileJustA act = (, mempty) ^>> go
 --
 -- This could be pure (e.g. 'Control.Arrow.Transformer.State.StateArrow') or
 -- impure (e.g. reference to a 'Control.Monad.Primitive.Extra.PrimST').
-type RunSchedA t a = forall i o . ((i, Schedule t) -> (o, Schedule t)) -> a i o
+type RunSched t a = forall i o . ((i, Schedule t) -> (o, Schedule t)) -> a i o
 
 runTick
-  :: (ArrowChoice a, Monoid o) => RunSchedA t a -> a (Tick, t) o -> a Tick o
+  :: (ArrowChoice a, Monoid o) => RunSched t a -> a (Tick, t) o -> a Tick o
 runTick runS runTickTask = whileJustA $ proc tick -> do
   r' <- runS (stA popOrTick) -< ()
   case r' of
@@ -59,7 +59,7 @@ runTick runS runTickTask = whileJustA $ proc tick -> do
       returnA -< Just r
 
 runTicksTo
-  :: (ArrowChoice a, Monoid o) => RunSchedA t a -> a (Tick, t) o -> a Tick o
+  :: (ArrowChoice a, Monoid o) => RunSched t a -> a (Tick, t) o -> a Tick o
 runTicksTo runS runTask = whileJustA $ proc tick -> do
   tick' <- runS (getA tickNow) -< ()
   if tick' >= tick
@@ -68,7 +68,7 @@ runTicksTo runS runTask = whileJustA $ proc tick -> do
 
 getInput
   :: (Arrow a)
-  => RunSchedA t a
+  => RunSched t a
   -> a TickDelta (Either Tick i)
   -> a i' (Either Tick i)
 getInput runS getTimedInput =
@@ -76,23 +76,24 @@ getInput runS getTimedInput =
 
 mkOutput
   :: (ArrowChoice a, Monoid o)
-  => RunSchedA t a
+  => RunSched t a
   -> a (Tick, t) o
   -> a i o
   -> a (Either Tick i) o
 mkOutput runS runTask runInput = runTicksTo runS runTask ||| runInput
 
--- | A more general version of 'mkOutput' that uses a prism-like optic.
+-- | A more general version of 'mkOutput' that uses a
+-- 'Control.Lens.Prism.Prism'-like optic.
 --
 -- Given an inner computation @a it o@ where one branch of the @it@ type has
--- a @(Tick, t)@ tuple that represents individual input tasks, return an outer
--- computation of type @a i o@ where the @i@ type only has a @Tick@. When the
--- outer computation receives these @Tick@ inputs, it automatically resolves
--- the relevant tasks of type @t@ that are active for that @Tick@, and passes
+-- a @('Tick', t)@ tuple representing individual input tasks, return an outer
+-- computation of type @a i o@ where the @i@ type only has a 'Tick'. When the
+-- outer computation receives these 'Tick' inputs, it automatically resolves
+-- the relevant tasks of type @t@ that are active for that 'Tick', and passes
 -- each tuple in sequence to the wrapped inner computation.
 tickTask
   :: (ArrowChoice a, ArrowApply a, Monoid o)
-  => RunSchedA t a
+  => RunSched t a
   -> (forall f . Applicative f => (Tick -> f (Tick, t)) -> i -> f it)
   -> a it o
   -> a i o
