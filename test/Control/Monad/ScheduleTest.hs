@@ -1,6 +1,4 @@
-{-# LANGUAGE BlockArguments      #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RankNTypes #-}
 
 module Control.Monad.ScheduleTest where
 

@@ -1,6 +1,5 @@
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE LambdaCase       #-}
-{-# LANGUAGE RankNTypes       #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 
 {-| Implementations of 'Clock' in the 'IO' monad. -}
 module Control.Clock.IO

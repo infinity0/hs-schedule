@@ -1,5 +1,4 @@
 {-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module Data.Rsv.Common
@@ -35,7 +34,7 @@ import           GHC.Stack              (HasCallStack)
 newtype RHandles = RHandles { getNextHandle :: RHandle }
   deriving (Show, Read, Generic, Eq)
 newtype RHandle = RHandle { getHandle :: Word64 }
-  deriving (Show, Read, Generic, Eq, Ord, Enum)
+  deriving (Show, Read, Generic, Eq, Ord, Enum, Bounded)
 
 newHandles :: RHandles
 newHandles = RHandles (RHandle 0)

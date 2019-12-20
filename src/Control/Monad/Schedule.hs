@@ -1,6 +1,5 @@
-{-# LANGUAGE BlockArguments #-}
-{-# LANGUAGE LambdaCase     #-}
-{-# LANGUAGE RankNTypes     #-}
+{-# LANGUAGE LambdaCase #-}
+{-# LANGUAGE RankNTypes #-}
 
 {-| Run scheduled computations in any (stateful) monad, using an adapter.
 

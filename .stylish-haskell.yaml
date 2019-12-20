@@ -1,0 +1,8 @@
+steps:
+  - simple_align: {}
+  - imports: {}
+  - language_pragmas: {}
+  - trailing_whitespace: {}
+
+language_extensions:
+  - FlexibleContexts # GHC doesn't need this but stylish-haskell does

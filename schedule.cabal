@@ -87,6 +87,8 @@ Common generic
     GHC-Options:
       -Werror
       -O2
+    -- some optimisations cause memory leaks; switch on -O2 and profiling so we
+    -- can detect this during development so it doesn't cause surprises later
     GHC-Prof-Options:
       -fprof-auto
 
