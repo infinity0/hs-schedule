@@ -7,6 +7,10 @@
 {-# LANGUAGE TemplateHaskell   #-}
 {-# LANGUAGE TupleSections     #-}
 
+{-| Pure serialisable futures.
+
+This API is experimental at the moment, and parts of it may change.
+-}
 module Control.Schedule.Future where
 
 import qualified Data.Map.Strict                  as M

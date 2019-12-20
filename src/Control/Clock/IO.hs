@@ -6,6 +6,7 @@
 module Control.Clock.IO
   ( newClock
   , newClockPico
+  , newClockMilli
   , newClock1ms
   , newClock1s
   , convClock
@@ -46,13 +47,17 @@ newClock intv = convClock intv <$> T.newClock
 newClockPico :: Integer -> IO (Clock IO)
 newClockPico = newClock . picosecondsToDiffTime
 
+-- | Create a new clock ticking at a given interval in milliseconds.
+newClockMilli :: Integer -> IO (Clock IO)
+newClockMilli ms = newClockPico (1000000000 * ms)
+
 -- | Create a new clock ticking at 1 millisecond.
 newClock1ms :: IO (Clock IO)
-newClock1ms = newClockPico 1000000000
+newClock1ms = newClockMilli 1
 
 -- | Create a new clock ticking at 1 second.
 newClock1s :: IO (Clock IO)
-newClock1s = newClockPico 1000000000000
+newClock1s = newClockMilli 1000
 
 -- | Check for a non-negative number.
 checkNonNeg :: (HasCallStack, Num a, Ord a, Show a) => a -> a
@@ -63,10 +68,8 @@ checkNonNeg n =
 checkPos :: (HasCallStack, Num a, Ord a, Show a) => a -> a
 checkPos n = if n > 0 then n else error $ "must be positive: " ++ show n
 
-{-| Convert a system monotonic "System.Time.Monotonic.Clock" into an abstract
-    'Clock' for scheduled computations, ticking at the given interval.
-
-    The first argument is the length of each tick.
+{-| Convert a "System.Time.Monotonic.Clock" into an abstract 'Clock' for
+    scheduled computations, ticking at the given interval.
 -}
 convClock :: DiffTime -> T.Clock -> Clock IO
 convClock intv c =

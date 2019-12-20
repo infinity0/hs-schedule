@@ -3,6 +3,11 @@
 {-# LANGUAGE RankNTypes    #-}
 {-# LANGUAGE TupleSections #-}
 
+{-| Extra utilities and abstractions for "Control.Monad.Primitive".
+
+The API structure is stable, but the naming is not very good and may change.
+Ideally we would push this upstream into "Control.Monad.Primitive" itself.
+-}
 module Control.Monad.Primitive.Extra
   ( PrimST(..)
   , readPrimST
@@ -19,6 +24,10 @@ import           Data.Tuple              (swap)
 import           Data.Tuple.Extra        (dupe)
 
 
+-- | Type abstracting a mutable reference.
+--
+-- This can be thought of as a mutable version of a @Lens' (PrimState m) s@
+-- with the lens functor specialised to @(,) a@ for each @a@.
 newtype PrimST m s = PrimST { statePrimST :: forall a. (s -> (a, s)) -> m a }
 
 readPrimST :: PrimST m s -> m s

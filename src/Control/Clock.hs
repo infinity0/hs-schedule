@@ -53,16 +53,16 @@ data Clock c = Clock {
         found in common operating systems, used with a timeout parameter.
 
         If @action@ when executed repeatedly gives a sequence of results, then
-        in the expression @cAct <- clock `clockWith` action@, @runClocked cAct@
-        when executed repeatedly gives the same sequence of elements but with
-        ticks interleaved in between them. Executing @finClocked cAct@ closes
-        any resources and invalidates any future calls to @cAct@.
+        in the expression @clkAct <- clock `clockWith` action@, @runClocked
+        clkAct@ when executed repeatedly gives the same sequence of results but
+        with ticks interleaved in between them. Executing @finClocked clkAct@
+        closes any resources and invalidates any future calls to @clkAct@.
 
         It is not necessary to call @finClocked@ if any part of @runClocked@
         (e.g. child threads) throws an exception - implementations should
         detect these situations and clean these up automatically. This frees
         the user of this function from requiring extra constraints which would
-        be necessary if it's necessary to run @`finally` finClocked cAct@ as
+        be necessary if it's necessary to run @`finally` finClocked clkAct@ as
         cleanup.
     -}
   , clockWith  :: !(forall a. c a -> c (Clocked c a))

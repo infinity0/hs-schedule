@@ -2,7 +2,12 @@
 {-# LANGUAGE LambdaCase     #-}
 {-# LANGUAGE RankNTypes     #-}
 
-{-| Run scheduled computations in any (stateful) monad, using an adapter. -}
+{-| Run scheduled computations in any (stateful) monad, using an adapter.
+
+This module mostly contains utilities for dealing with clock inputs. To get or
+set the existing timeouts, use your 'RunSched' adapter on one of the functions
+from "Data.Schedule", which this module also re-exports.
+-}
 module Control.Monad.Schedule
   ( RunSched
   , runTick
@@ -25,15 +30,16 @@ import           Data.Schedule
 import           Data.Schedule.Internal
 
 
--- | Something that can run @Schedule@ state transitions.
+-- | Something that can run 'Schedule' state transition functions.
 --
--- This could be pure (e.g. @StateT@) or impure (e.g. reference to a @PrimST@).
+-- This could be pure (e.g. 'Control.Monad.Trans.State.Strict.StateT') or
+-- impure (e.g. reference to a 'Control.Monad.Primitive.Extra.PrimST').
 --
 -- Examples:
 --
 -- @
---    runSchedMV :: PrimMonad m => RunSched t (ReaderT (PrimST m (Schedule t)) m)
---    runSchedMV sched = asks statePrimST >>= \run -> lift (run sched)
+--    primState :: PrimMonad m => RunSched t (ReaderT (PrimST m (Schedule t)) m)
+--    primState sched = asks statePrimST >>= \run -> lift (run sched)
 --
 --    state :: Monad m => RunSched t (StateT (Schedule t) m)
 --    zoom _lens . state :: Monad m => RunSched t (StateT s m)
@@ -75,14 +81,14 @@ mkOutput
   -> (Either Tick i -> m a)
 mkOutput runS runTask runInput = runTicksTo runS runTask `either` runInput
 
--- | A more general version of mkOutput that uses a prism-like optic.
+-- | A more general version of 'mkOutput' that uses a prism-like optic.
 --
--- Given an input executor @it -> m a@ where one branch of the @it@ type has
--- a @(Tick, t)@ tuple that represents individual input tasks, return a
--- convenience wrapper executor of type @i -> m a@ where the @i@ type only
--- has a @Tick@. When the wrapper executor receives these @Tick@ inputs, it
--- automatically resolves the relevant tasks of type @t@ that are active for
--- that @Tick@, and passes each tuple in sequence to the wrapped executor.
+-- Given an inner computation @it -> m a@ where one branch of the @it@ type has
+-- a @(Tick, t)@ tuple that represents individual input tasks, return an outer
+-- computation of type @i -> m a@ where the @i@ type only has a @Tick@. When
+-- the outer computation receives these @Tick@ inputs, it automatically
+-- resolves the relevant tasks of type @t@ that are active for that @Tick@, and
+-- passes each tuple in sequence to the wrapped inner computation.
 tickTask
   :: (Monad m, Monoid a)
   => RunSched t m

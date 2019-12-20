@@ -2,7 +2,12 @@
 {-# LANGUAGE RankNTypes    #-}
 {-# LANGUAGE TupleSections #-}
 
-{-| Run scheduled computations in any (stateful) arrow, using an adapter. -}
+{-| Run scheduled computations in any (stateful) arrow, using an adapter.
+
+This module mostly contains utilities for dealing with clock inputs. To get or
+set the existing timeouts, use your 'RunSchedA' adapter on one of the functions
+from "Data.Schedule", which this module also re-exports.
+-}
 module Control.Arrow.Schedule
   ( RunSchedA
   , runTick
@@ -35,9 +40,10 @@ whileJustA act = (, mempty) ^>> go
       Just r  -> go -< (i, rr <> r)
 
 
--- | Something that can run @Schedule@ state arrows.
+-- | Something that can run 'Schedule' state transition arrows.
 --
--- This could be pure (e.g. @StateArrow@) or impure (e.g. ref to a @PrimST@).
+-- This could be pure (e.g. 'Control.Arrow.Transformer.State.StateArrow') or
+-- impure (e.g. reference to a 'Control.Monad.Primitive.Extra.PrimST').
 type RunSchedA t a = forall i o . ((i, Schedule t) -> (o, Schedule t)) -> a i o
 
 runTick
@@ -76,14 +82,14 @@ mkOutput
   -> a (Either Tick i) o
 mkOutput runS runTask runInput = runTicksTo runS runTask ||| runInput
 
--- | A more general version of mkOutput that uses a prism-like optic.
+-- | A more general version of 'mkOutput' that uses a prism-like optic.
 --
--- Given an input executor @a it o@ where one branch of the @it@ type has
--- a @(Tick, t)@ tuple that represents individual input tasks, return a
--- convenience wrapper executor of type @a i o@ where the @i@ type only
--- has a @Tick@. When the wrapper executor receives these @Tick@ inputs, it
--- automatically resolves the relevant tasks of type @t@ that are active for
--- that @Tick@, and passes each tuple in sequence to the wrapped executor.
+-- Given an inner computation @a it o@ where one branch of the @it@ type has
+-- a @(Tick, t)@ tuple that represents individual input tasks, return an outer
+-- computation of type @a i o@ where the @i@ type only has a @Tick@. When the
+-- outer computation receives these @Tick@ inputs, it automatically resolves
+-- the relevant tasks of type @t@ that are active for that @Tick@, and passes
+-- each tuple in sequence to the wrapped inner computation.
 tickTask
   :: (ArrowChoice a, ArrowApply a, Monoid o)
   => RunSchedA t a
