@@ -69,18 +69,26 @@ Source-Repository head
   Type: git
   Location: https://github.com/infinity0/hs-schedule
 
+Flag dev
+  Description: Set compile flags for development
+  Default:     False
+  Manual:      True
+
 Common generic
   Default-Language: Haskell2010
-  Build-Depends: base >= 4,
+  Build-Depends: base >= 4 && < 5,
   GHC-Options:
-    -Werror
     -Wall
     -Wno-unused-matches
     -Wredundant-constraints
     -Wincomplete-record-updates
     -Wincomplete-uni-patterns
-    -O2
-  GHC-Prof-Options: -fprof-auto
+  if flag(dev)
+    GHC-Options:
+      -Werror
+      -O2
+    GHC-Prof-Options:
+      -fprof-auto
 
 Library
   Import: generic
