@@ -4,10 +4,9 @@
 {-| Implementations of 'Clock' in the 'IO' monad. -}
 module Control.Clock.IO
   ( newClock
-  , newClockPico
-  , newClockMilli
-  , newClock1ms
-  , newClock1s
+  , newClock'
+  , Intv(..)
+  , interval
   , convClock
   , clockWithIO
   , clockTimerIO
@@ -38,25 +37,23 @@ import           GHC.Stack                      (HasCallStack)
 import           Control.Clock
 
 
--- | Create a new clock ticking at a given interval.
-newClock :: DiffTime -> IO (Clock IO)
-newClock intv = convClock intv <$> T.newClock
+-- | Create a new clock with the given start tick and interval.
+newClock :: Tick -> DiffTime -> IO (Clock IO)
+newClock start intv = convClock start intv <$> T.newClock
 
--- | Create a new clock ticking at a given interval in picoseconds.
-newClockPico :: Integer -> IO (Clock IO)
-newClockPico = newClock . picosecondsToDiffTime
+newClock' :: DiffTime -> IO (Clock IO)
+newClock' = newClock 0
 
--- | Create a new clock ticking at a given interval in milliseconds.
-newClockMilli :: Integer -> IO (Clock IO)
-newClockMilli ms = newClockPico (1000000000 * ms)
+data Intv = Ps | Ns | Us | Ms | S
 
--- | Create a new clock ticking at 1 millisecond.
-newClock1ms :: IO (Clock IO)
-newClock1ms = newClockMilli 1
-
--- | Create a new clock ticking at 1 second.
-newClock1s :: IO (Clock IO)
-newClock1s = newClockMilli 1000
+-- | Convenience method for creating @DiffTime@ for use with @newClock@.
+interval :: Integer -> Intv -> DiffTime
+interval i u = picosecondsToDiffTime $ case u of
+  Ps -> i
+  Ns -> 1000 * i
+  Us -> 1000000 * i
+  Ms -> 1000000000 * i
+  S  -> 1000000000000 * i
 
 -- | Check for a non-negative number.
 checkNonNeg :: (HasCallStack, Num a, Ord a, Show a) => a -> a
@@ -70,13 +67,14 @@ checkPos n = if n > 0 then n else error $ "must be positive: " ++ show n
 {-| Convert a "System.Time.Monotonic.Clock" into an abstract 'Clock' for
     scheduled computations, ticking at the given interval.
 -}
-convClock :: DiffTime -> T.Clock -> Clock IO
-convClock intv c =
+convClock :: Tick -> DiffTime -> T.Clock -> Clock IO
+convClock start intv c =
   let r  = diffTimeToPicoseconds $ checkPos intv
+      i  = start * r
       c' = Clock
-        { clockNow   = (`div` r) <$> clockNowPico c
+        { clockNow   = (`div` r) <$> clockNowPico i c
         , clockDelay = \d -> when (d > 0) $ do
-                         remain <- (`rem` r) <$> clockNowPico c
+                         remain <- (`rem` r) <$> clockNowPico i c
                          -- wait a bit past the tick, make sure we've gone over
                          let t = r * fromIntegral d * 16 `div` 15 - remain
                          clockDelayPico t
@@ -85,8 +83,8 @@ convClock intv c =
         }
   in  c'
 
-clockNowPico :: T.Clock -> IO Integer
-clockNowPico c = diffTimeToPicoseconds <$> T.clockGetTime c
+clockNowPico :: Tick -> T.Clock -> IO Integer
+clockNowPico start c = (start +) . diffTimeToPicoseconds <$> T.clockGetTime c
 
 clockDelayPico :: Integer -> IO ()
 clockDelayPico d = T.delay $ picosecondsToDiffTime $ checkNonNeg d

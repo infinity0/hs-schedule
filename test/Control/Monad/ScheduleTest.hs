@@ -55,7 +55,7 @@ smoke
   -> RunSched Tick (tm IO)
   -> IO ()
 smoke mkRecv runWithNew runSched = do
-  clock <- newClock1ms
+  clock <- newClock' (interval 1 Ms)
   recv  <- mkRecv clock
   let top = 17
   (r, s) <- runWithNew newSchedule $ do
