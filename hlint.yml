@@ -1,0 +1,10 @@
+# Not too useful, and needed to work-around brittany stupidities
+- ignore: {name: Redundant do}
+- ignore: {name: Redundant $}
+
+# Too sensitive
+- ignore: {name: Use newtype instead of data}
+
+# Too pointless / trivial / subjective
+- ignore: {name: Use isNothing}
+- ignore: {name: Use <}

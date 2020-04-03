@@ -85,7 +85,7 @@ toPair = iso (\(RMMap x y) -> (x, y)) (uncurry RMMap)
 checkValidity :: RMMap k a -> Maybe Text
 checkValidity (RMMap handles' content') =
   let res = flip mapMaybe (M.toList content') $ \(k, hh) -> do
-        if any (not . R.checkHandle handles' . fst) hh then Just k else Nothing
+        if not (all (R.checkHandle handles' . fst) hh) then Just k else Nothing
   in  case res of
         [] -> Nothing
         e  -> Just $ pack "some handles were reused in the input"

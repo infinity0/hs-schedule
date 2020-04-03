@@ -20,7 +20,6 @@ where
 
 -- external
 import           Control.Monad.Extra    (whenMaybe)
-import           Data.Either            (either)
 import           Data.Functor.Identity  (Identity (..))
 import           Data.Maybe             (fromMaybe)
 
