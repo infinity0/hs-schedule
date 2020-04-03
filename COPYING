@@ -1,5 +1,5 @@
 hs-schedule - Schedule sub-computations to run later, in a pure way
-Copyright (C) 2016-2019 Ximin Luo <infinity0@pwned.gg>
+Copyright (C) 2016-2020 Ximin Luo <infinity0@pwned.gg>
 
 This program is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
