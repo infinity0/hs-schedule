@@ -1,10 +1,13 @@
+{-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE RecordWildCards #-}
 
 module Data.Schedule.Internal where
 
 -- external
+import           Codec.Serialise (Serialise)
 import           Data.Bifunctor  (first)
+import           Data.Binary     (Binary)
 import           Data.Text       (Text, pack)
 import           Data.Word       (Word64)
 import           GHC.Generics    (Generic)
@@ -25,7 +28,7 @@ type TickDelta = Word64
 --
 -- @t@ is the type of input parameter for each task, i.e. the task contents.
 newtype Task t = Task (RM.Delete Tick t)
-  deriving (Show, Read, Generic, Eq, Ord)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 
 -- | The current status of a task as returned by 'taskStatus'.
 data TaskStatus t =
@@ -35,7 +38,7 @@ data TaskStatus t =
   -- ^ The task is due to run at some future tick.
   | TaskRunning !t
   -- ^ The task is running right now.
-  deriving (Show, Read, Generic, Eq, Ord)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 
 -- | The state of all scheduled pending tasks.
 --
@@ -45,7 +48,7 @@ data Schedule t = Schedule {
   , tasks   :: !(RMMap Tick t)
   , pending :: !(S.Set (Task t))
   , running :: !(Maybe (Task t, t))
-} deriving (Show, Read, Generic, Eq)
+} deriving (Show, Read, Generic, Binary, Serialise, Eq)
 
 newSchedule :: Schedule t
 newSchedule =

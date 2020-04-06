@@ -96,7 +96,9 @@ Common generic
 Library
   Import: generic
   Build-Depends:
-      extra
+      binary
+    , serialise
+    , extra
     -- for Data.Rsv.*
     , containers
     , lens

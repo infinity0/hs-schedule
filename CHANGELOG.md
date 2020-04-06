@@ -1,5 +1,9 @@
 # Revision history for schedule
 
+## 0.4.0.0 -- UNRELEASED
+
+* Add instances for Binary and Serialise.
+
 ## 0.3.0.0 -- 2020-04-03
 
 * Update to GHC 8.8.3, remove some redundant imports.

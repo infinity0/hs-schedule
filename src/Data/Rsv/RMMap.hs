@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TupleSections   #-}
@@ -33,9 +34,11 @@ module Data.Rsv.RMMap
 where
 
 -- external
+import           Codec.Serialise (Serialise)
 import           Control.Lens    (Iso, anon, at, iso, makeLensesFor, (%%~),
                                   (%~), (&))
 import           Data.Bifunctor  (first)
+import           Data.Binary     (Binary)
 import qualified Data.Foldable   as F (toList)
 import           Data.Maybe      (mapMaybe)
 import           Data.Text       (Text, pack)
@@ -54,11 +57,11 @@ type Entries a = Seq (RHandle, a)
 data RMMap k a = RMMap {
   handles :: !RHandles,
   content :: !(M.Map k (Entries a))
-} deriving (Show, Read, Generic, Eq)
+} deriving (Show, Read, Generic, Binary, Serialise, Eq)
 makeLensesFor ((\x -> (x, "_" <> x)) <$> ["handles", "content"]) ''RMMap
 
 data Delete k a = Delete !k !RHandle
-  deriving (Show, Read, Generic, Eq, Ord)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 
 toPair
   :: Iso

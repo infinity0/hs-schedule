@@ -1,3 +1,4 @@
+{-# LANGUAGE DeriveAnyClass  #-}
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE LambdaCase      #-}
 {-# LANGUAGE RankNTypes      #-}
@@ -15,11 +16,13 @@ import qualified Data.Map.Strict                  as M
 import qualified Data.Set                         as S
 
 -- external
+import           Codec.Serialise                  (Serialise)
 import           Control.Lens                     (IndexedTraversal', Lens', at,
                                                    contains, indices, (%%~),
                                                    (%~), (.~), (?~), (^.))
 import           Control.Lens.TH                  (makeLensesFor, makePrisms)
 import           Control.Monad.Trans.State.Strict (runState, state)
+import           Data.Binary                      (Binary)
 import           Data.Function                    ((&))
 import           Data.Functor.Compose             (Compose (..))
 import           Data.Schedule                    (Schedule, Task, TickDelta,
@@ -35,14 +38,14 @@ type OMap k v = M.Map k v -- TODO: ideally should be map ordered by insertion ti
 data TimedResult tk r =
     TimedOut !tk
   | GotResult !r
-   deriving (Show, Read, Generic, Eq, Ord)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 
 data SFuture wo ro =
     SFWaiting !(OSet wo)
     -- ^ SExpects waiting on us
   | SFResult !ro
     -- ^ Result of the Future
-  deriving (Show, Read, Generic, Eq, Ord)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 makePrisms ''SFuture
 
 data SExpect wi ri tk = SExpect {
@@ -59,7 +62,7 @@ data SExpect wi ri tk = SExpect {
     -- holding place and the caller of this should move items from here into
     -- some other place to indicate that the results have been processed, so
     -- that if it is called twice it does not process these results twice.
-  } deriving (Show, Read, Generic, Eq, Ord)
+  } deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 makeLensesFor ((\x -> (x, "_" <> x)) <$> ["seExpects", "seResults"]) ''SExpect
 
 instance Ord wi => Semigroup (SExpect wi ri tk) where
@@ -69,7 +72,7 @@ instance Ord wi => Semigroup (SExpect wi ri tk) where
 instance Ord wi => Monoid (SExpect wi ri tk) where
   mempty = SExpect mempty mempty
 
-data SFStatus e = Expecting e | NotExpecting deriving (Show, Read, Generic, Eq, Ord)
+data SFStatus e = Expecting e | NotExpecting deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 type SFStatusFull wo tk = SFStatus (OSet wo, Task tk)
 
 data SFError =
@@ -78,7 +81,7 @@ data SFError =
         sfePreExpect :: !(SFStatus ())
       , sfePreActual :: !(SFStatus ())
     }
-  deriving (Show, Read, Generic, Eq, Ord)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 
 sCheckStatus
   :: (HasCallStack, Ord wi, Ord wo)

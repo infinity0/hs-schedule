@@ -29,6 +29,8 @@ where
 -- external
 import qualified Data.Sequence.Internal as Seq
 
+import           Codec.Serialise        (Serialise)
+import           Data.Binary            (Binary)
 import           Data.Sequence          (Seq (..), (|>))
 import           Data.Word              (Word64)
 import           GHC.Generics           (Generic)
@@ -44,9 +46,9 @@ import           GHC.Stack              (HasCallStack)
 -- 2. Newly generated handles are distinguishable from previously-generated
 -- ones. 'checkHandle' is used to check this.
 newtype RHandles = RHandles { getNextHandle :: RHandle }
-  deriving (Show, Read, Generic, Eq)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq)
 newtype RHandle = RHandle { getHandle :: Word64 }
-  deriving (Show, Read, Generic, Eq, Ord, Enum, Bounded)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord, Enum, Bounded)
 
 newHandles :: RHandles
 newHandles = RHandles (RHandle 0)
