@@ -4,6 +4,7 @@
 
 # Too sensitive
 - ignore: {name: Use newtype instead of data}
+- ignore: {name: Use camelCase}
 
 # Too pointless / trivial / subjective
 - ignore: {name: Use isNothing}

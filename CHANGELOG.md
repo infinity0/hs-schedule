@@ -3,6 +3,7 @@
 ## 0.4.0.0 -- UNRELEASED
 
 * Add instances for Binary and Serialise.
+* Add tests based on Control.Static.
 
 ## 0.3.0.0 -- 2020-04-03
 

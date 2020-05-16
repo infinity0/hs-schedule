@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass  #-}
+{-# LANGUAGE DeriveFunctor   #-}
 {-# LANGUAGE DeriveGeneric   #-}
 {-# LANGUAGE RecordWildCards #-}
 
@@ -38,7 +39,7 @@ data TaskStatus t =
   -- ^ The task is due to run at some future tick.
   | TaskRunning !t
   -- ^ The task is running right now.
-  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord, Functor)
 
 -- | The state of all scheduled pending tasks.
 --

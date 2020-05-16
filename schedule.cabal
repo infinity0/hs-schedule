@@ -1,6 +1,6 @@
 Cabal-Version:       2.4
 Name:                schedule
-Version:             0.3.0.0
+Version:             0.4.0.0
 Synopsis:            Pure deterministic scheduled computations
 Description:
   Schedule computations to run later, in a pure and deterministic way.
@@ -145,12 +145,17 @@ Test-Suite unit
     , tasty-quickcheck
     , tasty-hunit
     , checkers
+    , schedule
+    , lens
+    -- Control.Monad.ScheduleTest
     , primitive
     , transformers
-    , schedule
+    -- Control.Static.ScheduleTest
+    , static
   HS-Source-Dirs: test
   Type: exitcode-stdio-1.0
   Main-Is: UnitTests.hs
   Other-Modules:
       Control.Monad.ScheduleTest
+    , Control.Static.ScheduleTest
     , Data.Rsv.Example
