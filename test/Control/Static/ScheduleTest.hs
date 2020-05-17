@@ -21,27 +21,25 @@ import           Test.Tasty                       hiding (after)
 import           Test.Tasty.HUnit
 
 import           Control.Lens                     (Lens', Optic', Prism',
-                                                   review, view, zoom, (^?),
-                                                   _Wrapped)
-import           Control.Lens.TH                  (makeWrapped)
+                                                   review, view, zoom, (^?))
+import           Control.Lens.Mutable             (ASLens, AsLens (..),
+                                                   MonadLST, PrimOpGroup (..),
+                                                   runASLens)
 import           Control.Monad                    (when)
 import           Control.Monad.Trans.Class        (MonadTrans (lift))
 import           Control.Monad.Trans.Maybe        (MaybeT (MaybeT, runMaybeT))
 import           Control.Monad.Trans.Reader       (ReaderT (..))
 import           Control.Monad.Trans.State.Strict (StateT (..), state)
-import           Control.Static                   (ClosureApply, NullC2Sym0,
-                                                   RepVal (..), TCTab (..),
-                                                   applyClosure,
-                                                   evalSomeClosure,
+import           Control.Static                   (ClosureApply, RepVal (..),
+                                                   applyClosure, envTabCons,
+                                                   envTabNil, evalSomeClosure,
                                                    mkClosureTab, repClosureTab)
 import           Control.Static.TH                (mkDefStaticTab,
-                                                   mkStaticsWithRefs, staticKey,
-                                                   staticRef)
+                                                   mkStaticsWithRefs, staticRef)
 import           Data.Primitive.MutVar            (newMutVar, readMutVar)
 
 -- internal
 import           Control.Clock.IO
-import           Control.Monad.Primitive.Extra
 import           Control.Monad.Schedule
 import           Data.Rsv.RMMap                   (RMMap (..), empty)
 import           Data.Schedule.Internal
@@ -108,27 +106,23 @@ smoke mkRecv runWithNew env = do
       Left  e -> fail (show e)
       Right r -> r
 
-  envTab     = TCCons $(staticKey 'countdown) env $ TCNil @NullC2Sym0
+  envTab     = envTabCons $(staticRef 'countdown) env $ envTabNil
   closureTab = repClosureTab $ mkClosureTab staticTab envTab
 
 -- Note: it is important that the env-type e / state-type s do not depend on
 -- the task-type t, otherwise they will become mutually-recursive which is
 -- impossible to achieve in Haskell.
 
-runSchedMV
-  :: PrimMonad m => Lens' e (PrimST m (Schedule t)) -> RunSched t (ReaderT e m)
-runSchedMV lens sched = view lens >>= \run -> lift (statePrimST run sched)
+runSchedM
+  :: MonadLST p s m
+  => Lens' e (ASLens p s (Schedule t))
+  -> RunSched t (ReaderT e m)
+runSchedM lens sched = view lens >>= \slens -> lift (runASLens slens sched)
+type SchedM p s m = ASLens p s (Schedule (ClosureApply SomeArg))
 
-newtype TaskMV m = TaskMV (ClosureApply SomeArg) deriving (Eq, Ord, Show)
-makeWrapped ''TaskMV
-type SchedMV m = PrimST m (Schedule (TaskMV m))
-
-runSchedST :: Monad m => Lens' s (Schedule t) -> RunSched t (StateT s m)
-runSchedST lens = zoom lens . state
-
-newtype TaskST m = TaskST (ClosureApply SomeArg) deriving (Eq, Ord, Show)
-makeWrapped ''TaskST
-type SchedST m = Schedule (TaskST m)
+runSchedS :: Monad m => Lens' s (Schedule t) -> RunSched t (StateT s m)
+runSchedS lens = zoom lens . state
+type SchedS m = Schedule (ClosureApply SomeArg)
 
 type SOptic a = forall f . Optic' (->) f a a
 
@@ -138,16 +132,16 @@ tests = testGroup
   [ testCase "smoke clockTimer" $ do
     smoke (\clock -> pure (flip (clockTimer clock) voidInput))
           (flip runStateT)
-          (TEnv (runSchedST (id :: SOptic (SchedST IO))) _Wrapped)
+          (TEnv (runSchedS (id :: SOptic (SchedS IO))) id)
   , testCase "smoke clockWith" $ do
     -- TODO: we should call 'fin' (see clockWith) after the test but meh
     smoke
       (\clock -> const . runClocked <$> clockWith clock voidInput)
       (\s0 act -> do
         mv <- newMutVar s0
-        r  <- runReaderT act (stMutVar mv)
+        r  <- runReaderT act (asLens mv)
         s1 <- readMutVar mv
         pure (r, s1)
       )
-      (TEnv (runSchedMV (id :: SOptic (SchedMV IO))) _Wrapped)
+      (TEnv (runSchedM (id :: SOptic (SchedM 'OpST s IO))) id)
   ]

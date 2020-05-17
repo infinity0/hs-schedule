@@ -31,13 +31,13 @@ import           Data.Schedule.Internal
 -- | Something that can run 'Schedule' state transition functions.
 --
 -- This could be pure (e.g. 'Control.Monad.Trans.State.Strict.StateT') or
--- impure (e.g. reference to a 'Control.Monad.Primitive.Extra.PrimST').
+-- impure (e.g. reference to a 'Control.Lens.Mutable.AsLens').
 --
 -- Examples:
 --
 -- @
---    primState :: PrimMonad m => RunSched t (ReaderT (PrimST m (Schedule t)) m)
---    primState sched = asks statePrimST >>= \run -> lift (run sched)
+--    runSchedM :: forall p s m r t . (MonadLST p s m, AsLens p s r) => RunSched t (ReaderT (r (Schedule t)) m)
+--    runSchedM sched = ask >>= \ref -> lift (runSLens @p @s (asLens ref) sched)
 --
 --    state :: Monad m => RunSched t (StateT (Schedule t) m)
 --    zoom _lens . state :: Monad m => RunSched t (StateT s m)

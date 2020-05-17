@@ -43,7 +43,7 @@ whileJustA act = (, mempty) ^>> go
 -- | Something that can run 'Schedule' state transition arrows.
 --
 -- This could be pure (e.g. 'Control.Arrow.Transformer.State.StateArrow') or
--- impure (e.g. reference to a 'Control.Monad.Primitive.Extra.PrimST').
+-- impure (e.g. reference to a 'Control.Lens.Mutable.AsLens').
 type RunSched t a = forall i o . ((i, Schedule t) -> (o, Schedule t)) -> a i o
 
 runTick
