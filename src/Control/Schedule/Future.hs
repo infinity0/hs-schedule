@@ -24,7 +24,6 @@ import           Control.Lens.TH                  (makeLensesFor, makePrisms)
 import           Control.Monad.Trans.State.Strict (runState, state)
 import           Data.Binary                      (Binary)
 import           Data.Function                    ((&))
-import           Data.Functor.Compose             (Compose (..))
 import           Data.Schedule                    (Schedule, Task, TickDelta,
                                                    after, cancel_)
 import           GHC.Generics                     (Generic)
@@ -32,51 +31,58 @@ import           GHC.Stack                        (HasCallStack)
 import           Safe                             (fromJustNote)
 
 
-type OSet a = S.Set a -- TODO: ideally should be set ordered by insertion time
-type OMap k v = M.Map k v -- TODO: ideally should be map ordered by insertion time
+type OSet a = S.Set a -- FIXME: should be set ordered by insertion time
+type OMap k v = M.Map k v -- FIXME: should be map ordered by insertion time
 
-data TimedResult tk r =
-    TimedOut !tk
+{- | A future value that might time out.
+
+None of the other functions in this module use this, but it is provided for
+convenience, potentially as the @ro@ parameter of 'SFuture'.
+-}
+data TimedResult to r =
+    TimedOut !to
   | GotResult !r
   deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 
+{- | A future result.
+
+An 'SFuture' tracks either the 'SExpect's that are waiting on its result,
+indexed by type @wo@; or else the result that has been given back.
+-}
 data SFuture wo ro =
     SFWaiting !(OSet wo)
     -- ^ SExpects waiting on us
-  | SFResult !ro
+  | SFSettled !ro
     -- ^ Result of the Future
   deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 makePrisms ''SFuture
 
-data SExpect wi ri tk = SExpect {
+{- | An expectation on future results.
+
+An 'SExpect' tracks the 'SFuture's that it's waiting on, indexed by type @wi@,
+along with the results of the 'SFuture's that it previously waited on, that
+have now given a result back.
+-}
+data SExpect wi tk = SExpect {
     seExpects :: !(OMap wi (Task tk))
-    -- ^ SFutures we're waiting for, with our own timeout.
+    -- ^ SFutures we're waiting for, with our timeout waiting for them.
     --
-    -- Note that the SFuture might have its own separate timeout which is
+    -- Note that the 'SFuture' might have its own separate timeout which is
     -- different; this @t@ timeout is when *we* stop waiting on it.
-    --
-    -- For example if @(i ~ TimedResult a)@ and our timeout is longer than
-    -- their timeout then 'seResults' will get a @GotResult (TimedOut t)@.
-  , seResults :: !(OMap wi (TimedResult tk ri))
-    -- ^ SFutures that have completed, with the result. This is meant to be a
-    -- holding place and the caller of this should move items from here into
-    -- some other place to indicate that the results have been processed, so
-    -- that if it is called twice it does not process these results twice.
   } deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
-makeLensesFor ((\x -> (x, "_" <> x)) <$> ["seExpects", "seResults"]) ''SExpect
+makeLensesFor ((\x -> (x, "_" <> x)) <$> ["seExpects"]) ''SExpect
 
-instance Ord wi => Semigroup (SExpect wi ri tk) where
-  s1 <> s2 =
-    SExpect (seExpects s1 <> seExpects s2) (seResults s1 <> seResults s2)
+instance Ord wi => Semigroup (SExpect wi tk) where
+  s1 <> s2 = SExpect (seExpects s1 <> seExpects s2)
 
-instance Ord wi => Monoid (SExpect wi ri tk) where
-  mempty = SExpect mempty mempty
+instance Ord wi => Monoid (SExpect wi tk) where
+  mempty = SExpect mempty
 
 data SFStatus e = Expecting e | NotExpecting deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 type SFStatusFull wo tk = SFStatus (OSet wo, Task tk)
 
 data SFError =
-    SFEAlreadyFinished
+    SFEAlreadySettled
   | SFEInvalidPrecondition {
         sfePreExpect :: !(SFStatus ())
       , sfePreActual :: !(SFStatus ())
@@ -88,20 +94,31 @@ sCheckStatus
   => wi
   -> wo
   -> Lens' s (SFuture wo r)
-  -> Lens' s (SExpect wi r tk)
+  -> Lens' s (SExpect wi tk)
   -> s
   -> SFStatusFull wo tk
 sCheckStatus sfi sei lsf lse s =
   case (s ^. lsf, s ^. lse . _seExpects . at sfi) of
-    (SFResult  _      , Just _ ) -> error "SFuture result but SExpect expects"
+    (SFSettled _      , Just _ ) -> error "SFuture result but SExpect expects"
     (SFWaiting waiting, Just lt) -> if waiting ^. contains sei
       then Expecting (waiting, lt)
       else error "SFuture not waiting but SExpect expects"
-    (SFResult  _      , Nothing) -> NotExpecting
+    (SFSettled _      , Nothing) -> NotExpecting
     (SFWaiting waiting, Nothing) -> if waiting ^. contains sei
       then error "SFuture waiting but SExpect not expects"
       else NotExpecting
 
+{- | Make an 'SExpect' start waiting on an 'SFuture'.
+
+Both the 'SExpect' and the 'SFuture' must already exist, and be accessible
+via the given lens.
+
+Returns:
+
+  * @'Left' 'SFEInvalidPrecondition'@ if there was already an expectation.
+  * @'Right' ('Just' r)@ if the 'SFuture' was already settled.
+  * @'Right' 'Nothing'@ otherwise.
+-}
 sExpectFuture
   :: (Ord wi, Ord wo)
   => TickDelta
@@ -109,93 +126,93 @@ sExpectFuture
   -> wi
   -> wo
   -> Lens' s (SFuture wo r)
-  -> Lens' s (SExpect wi r tk)
+  -> Lens' s (SExpect wi tk)
   -> Lens' s (Schedule tk)
   -> s
-  -> Either SFError s
-sExpectFuture d t sfi sei lsf lse lsch s0 = case status of
-  Expecting _  -> Left $ SFEInvalidPrecondition NotExpecting (Expecting ())
+  -> (Either SFError (Maybe r), s)
+sExpectFuture d tk sfi sei lsf lse lsch s0 = case status of
+  Expecting _ ->
+    (Left $ SFEInvalidPrecondition NotExpecting (Expecting ()), s0)
   NotExpecting -> case s0 ^. lsf of
-    SFWaiting sfWaiting -> do
-      let (lt, s1) = s0 & lsch %%~ after d t
-      Right
-        $ s1
-        -- SExpect add expecting, set timeout
-        & (lse . _seExpects . at sfi ?~ lt)
-        -- SFuture add sfWaiting
-        & (lsf .~ SFWaiting (sfWaiting & contains sei .~ True))
-    SFResult r -> do
-      -- SExpect add result to seResults
-      Right $ s0 & lse . _seResults . at sfi ?~ GotResult r
+    SFWaiting sfWaiting ->
+      let (lt, s1) = s0 & lsch %%~ after d tk
+          s2 =
+              s1
+                -- SExpect add expecting, set timeout
+                & (lse . _seExpects . at sfi ?~ lt)
+                -- SFuture add sfWaiting
+                & (lsf .~ SFWaiting (sfWaiting & contains sei .~ True))
+      in  (Right Nothing, s2)
+    SFSettled r -> do
+      (Right (Just r), s0)
   where status = sCheckStatus sfi sei lsf lse s0
 
+{- | Make an 'SExpect' stop waiting on an 'SFuture', e.g. after a timeout.
+
+Both the 'SExpect' and the 'SFuture' must already exist, and be accessible
+via the given lens.
+
+This does not cancel the future itself, since other 'SExpect's may be waiting
+on it. The caller can check if this is the case, and if not it may choose to
+either cancel the future, or leave it running for a while (e.g. until it times
+out), in case other 'SExpect's wait on it in the near future.
+
+Note that this is distinct from any timeout on the 'SFuture' itself.
+-}
 sExpectCancel
   :: (Ord wi, Ord wo)
   => wi
   -> wo
   -> Lens' s (SFuture wo r)
-  -> Lens' s (SExpect wi r tk)
+  -> Lens' s (SExpect wi tk)
   -> Lens' s (Schedule tk)
   -> s
-  -> Either SFError s
+  -> (Either SFError (), s)
 sExpectCancel sfi sei lsf lse lsch s0 = case status of
-  NotExpecting -> Left $ SFEInvalidPrecondition (Expecting ()) NotExpecting
-  Expecting (sfWaiting, lt) -> do
-    Right
-      $ s0
-      -- SExpect drop expects, clear timeout
-      & (lsch %~ (snd . cancel_ lt))
-      & (lse . _seExpects . at sfi .~ Nothing)
-      -- SFuture drop sfWaiting
-      & (lsf .~ SFWaiting (sfWaiting & contains sei .~ False))
+  NotExpecting ->
+    (Left $ SFEInvalidPrecondition (Expecting ()) NotExpecting, s0)
+  Expecting (sfWaiting, lt) ->
+    let s1 =
+            s0
+            -- SExpect drop expects, clear timeout
+              & (lsch %~ (snd . cancel_ lt))
+              & (lse . _seExpects . at sfi .~ Nothing)
+            -- SFuture drop sfWaiting
+              & (lsf .~ SFWaiting (sfWaiting & contains sei .~ False))
+    in  (Right (), s1)
   where status = sCheckStatus sfi sei lsf lse s0
 
-sExpectTimeout
-  :: (HasCallStack, Ord wi, Ord wo)
-  => tk
-  -> wi
-  -> wo
-  -> Lens' s (SFuture wo r)
-  -> Lens' s (SExpect wi r tk)
-  -> Lens' s (Schedule tk)
-  -> s
-  -> Either SFError s
-sExpectTimeout tk sfi sei lsf lse lsch s0 = case status of
-  NotExpecting      -> Left $ SFEInvalidPrecondition (Expecting ()) NotExpecting
-  Expecting (_, lt) -> do
-    -- SExcept add (TimedOut tick) result
-    let s1 = s0 & lse . _seResults . at sfi %~ \case
-          Just _  -> error "SExpect expects but also results"
-          Nothing -> Just (TimedOut tk)
-    sExpectCancel sfi sei lsf lse lsch s1
-  where status = sCheckStatus sfi sei lsf lse s0
+{- | Set the result of a future, for all 'SExpect' that are waiting on it.
 
-sFutureResult
+This also changes the 'SFuture' into a 'SFSettled', but does not clean it up as
+the caller may want this to be done later. If another 'SExpect' wants to wait
+on it before cleanup via 'sExpectFuture', it would get the result immediately.
+
+Returns:
+
+  * @'Left' 'SFEAlreadySettled'@ if the future was already settled.
+  * @'Right' waiting@ of the previously-waiting 'SExpect's.
+-}
+sFutureSettled
   :: (Ord wi, Ord wo)
   => r
   -> wi
   -> Lens' s (SFuture wo r)
-  -> IndexedTraversal' wo s (SExpect wi r tk)
+  -> IndexedTraversal' wo s (SExpect wi tk)
   -> Lens' s (Schedule tk)
   -> s
-  -> Either SFError s
-sFutureResult r sfi lsf lsse lsch s0 = do
-  (waiting, s1) <- getCompose $ s0 & lsf %%~ \case
-    SFResult  _ -> Compose (Left SFEAlreadyFinished)
-    SFWaiting w -> Compose (Right (w, SFResult r))
-  let sch0       = s1 ^. lsch
-  let (s2, sch1) = f waiting s1 sch0
-  let s3         = s2 & lsch .~ sch1
-  Right s3
- where
-  -- TODO: iterate in order of w, not the traversal
-  f w s = runState $ s & lsse . indices (`S.member` w) %%~ g
-  g se = do
-    let SExpect {..} = se
-    -- SExpect drop expects, clear timeout
-    let (lt', seExpects') = seExpects & at sfi %%~ (, Nothing)
-        lt = fromJustNote "SFuture idx not found in SExpect expects" lt'
-    state $ cancel_ lt
-    let seResults' = seResults & at sfi ?~ GotResult r
-    -- SExpect add result to seResults
-    pure $ se { seExpects = seExpects', seResults = seResults' }
+  -> (Either SFError (OSet wo), s)
+sFutureSettled r sfi lsf lsse lsch s0 = case s0 ^. lsf of
+  SFSettled _ -> (Left SFEAlreadySettled, s0)
+  SFWaiting w ->
+    let sch0       = s0 ^. lsch
+        (s2, sch1) = f sch0
+        s3         = s2 & lsch .~ sch1
+        -- TODO: iterate in order of w, not the traversal
+        f          = runState $ s0 & lsse . indices (`S.member` w) %%~ \se -> do
+          -- SExpect drop expects, clear timeout
+          let (lt', se') = se & _seExpects . at sfi %%~ (, Nothing)
+              lt = fromJustNote "SFuture idx not found in SExpect expects" lt'
+          state $ cancel_ lt
+          pure $ se'
+    in  (Right w, s3 & lsf .~ SFSettled r)
