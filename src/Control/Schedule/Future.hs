@@ -91,13 +91,13 @@ data SFError =
 
 sCheckStatus
   :: (HasCallStack, Ord wi, Ord wo)
-  => wi
-  -> wo
-  -> Lens' s (SFuture wo r)
+  => Lens' s (SFuture wo r)
   -> Lens' s (SExpect wi tk)
+  -> wi
+  -> wo
   -> s
   -> SFStatusFull wo tk
-sCheckStatus sfi sei lsf lse s =
+sCheckStatus lsf lse sfi sei s =
   case (s ^. lsf, s ^. lse . _seExpects . at sfi) of
     (SFSettled _      , Just _ ) -> error "SFuture result but SExpect expects"
     (SFWaiting waiting, Just lt) -> if waiting ^. contains sei
@@ -121,16 +121,16 @@ Returns:
 -}
 sExpectFuture
   :: (Ord wi, Ord wo)
-  => TickDelta
-  -> tk
-  -> wi
-  -> wo
-  -> Lens' s (SFuture wo r)
+  => Lens' s (SFuture wo r)
   -> Lens' s (SExpect wi tk)
   -> Lens' s (Schedule tk)
+  -> wi
+  -> wo
+  -> TickDelta
+  -> tk
   -> s
   -> (Either SFError (Maybe r), s)
-sExpectFuture d tk sfi sei lsf lse lsch s0 = case status of
+sExpectFuture lsf lse lsch sfi sei d tk s0 = case status of
   Expecting _ ->
     (Left $ SFEInvalidPrecondition NotExpecting (Expecting ()), s0)
   NotExpecting -> case s0 ^. lsf of
@@ -145,7 +145,7 @@ sExpectFuture d tk sfi sei lsf lse lsch s0 = case status of
       in  (Right Nothing, s2)
     SFSettled r -> do
       (Right (Just r), s0)
-  where status = sCheckStatus sfi sei lsf lse s0
+  where status = sCheckStatus lsf lse sfi sei s0
 
 {- | Make an 'SExpect' stop waiting on an 'SFuture', e.g. after a timeout.
 
@@ -161,14 +161,14 @@ Note that this is distinct from any timeout on the 'SFuture' itself.
 -}
 sExpectCancel
   :: (Ord wi, Ord wo)
-  => wi
-  -> wo
-  -> Lens' s (SFuture wo r)
+  => Lens' s (SFuture wo r)
   -> Lens' s (SExpect wi tk)
   -> Lens' s (Schedule tk)
+  -> wi
+  -> wo
   -> s
   -> (Either SFError (), s)
-sExpectCancel sfi sei lsf lse lsch s0 = case status of
+sExpectCancel lsf lse lsch sfi sei s0 = case status of
   NotExpecting ->
     (Left $ SFEInvalidPrecondition (Expecting ()) NotExpecting, s0)
   Expecting (sfWaiting, lt) ->
@@ -180,7 +180,7 @@ sExpectCancel sfi sei lsf lse lsch s0 = case status of
             -- SFuture drop sfWaiting
               & (lsf .~ SFWaiting (sfWaiting & contains sei .~ False))
     in  (Right (), s1)
-  where status = sCheckStatus sfi sei lsf lse s0
+  where status = sCheckStatus lsf lse sfi sei s0
 
 {- | Set the result of a future, for all 'SExpect' that are waiting on it.
 
@@ -195,14 +195,14 @@ Returns:
 -}
 sFutureSettled
   :: (Ord wi, Ord wo)
-  => r
-  -> wi
-  -> Lens' s (SFuture wo r)
+  => Lens' s (SFuture wo r)
   -> IndexedTraversal' wo s (SExpect wi tk)
   -> Lens' s (Schedule tk)
+  -> wi
+  -> r
   -> s
   -> (Either SFError (OSet wo), s)
-sFutureSettled r sfi lsf lsse lsch s0 = case s0 ^. lsf of
+sFutureSettled lsf lsse lsch sfi r s0 = case s0 ^. lsf of
   SFSettled _ -> (Left SFEAlreadySettled, s0)
   SFWaiting w ->
     let sch0       = s0 ^. lsch
