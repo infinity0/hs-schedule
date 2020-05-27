@@ -14,6 +14,10 @@
 {-# LANGUAGE TypeFamilies               #-}
 {-# LANGUAGE UndecidableInstances       #-}
 
+-- this is for a TH expression so not a runtime issue
+-- sadly GHC doesn't let us disable this per-expression
+{-# OPTIONS_GHC -Wno-error=incomplete-uni-patterns #-}
+
 module Control.Static.ScheduleTest where
 
 -- external
