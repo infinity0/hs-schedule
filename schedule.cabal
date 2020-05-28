@@ -150,7 +150,7 @@ Test-Suite unit
     , primitive
     , transformers
     -- Control.Static.ScheduleTest
-    , mutable-lens (>= 0.2)
+    , mutable-lens (>= 0.3)
     , static
   HS-Source-Dirs: test
   Type: exitcode-stdio-1.0

@@ -1,5 +1,6 @@
 {-# LANGUAGE AllowAmbiguousTypes #-}
 {-# LANGUAGE DataKinds           #-}
+{-# LANGUAGE FlexibleContexts    #-}
 {-# LANGUAGE RankNTypes          #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TypeApplications    #-}
@@ -11,7 +12,8 @@ import           Test.Tasty                       hiding (after)
 import           Test.Tasty.HUnit
 
 import           Control.Lens.Mutable             (AsLens (..), MonadLST,
-                                                   PrimOpGroup (..), runSLens)
+                                                   PrimOpGroup (..), S (..),
+                                                   runSLens)
 import           Control.Monad                    (when)
 import           Control.Monad.Trans.Class        (MonadTrans (lift))
 import           Control.Monad.Trans.Maybe        (MaybeT (MaybeT, runMaybeT))
@@ -67,8 +69,8 @@ smoke mkRecv runWithNew runSched = do
 
 runSchedM
   :: forall p s m r t
-   . (MonadLST p s m, AsLens p s r)
-  => RunSched t (ReaderT (r (Schedule t)) m)
+   . MonadLST p s m
+  => AsLens (S p s) (Schedule t) r => RunSched t (ReaderT (r (Schedule t)) m)
 runSchedM sched = ask >>= \ref -> lift (runSLens @p @s (asLens ref) sched)
 
 runSchedS :: Monad m => RunSched t (StateT (Schedule t) m)
