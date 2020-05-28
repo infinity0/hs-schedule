@@ -46,6 +46,7 @@ import           Data.Schedule.Internal
 -- See the unit tests for more examples.
 type RunSched t m = forall a . (Schedule t -> (a, Schedule t)) -> m a
 
+-- | Run all tasks in the current tick, and tick over.
 runTick :: (Monad m, Monoid a) => RunSched t m -> (t -> m a) -> m a
 runTick runS runTickTask = whileJustM $ do
   runS popOrTick >>= \case
@@ -56,6 +57,9 @@ runTick runS runTickTask = whileJustM $ do
       runS $ modST $ releaseTask t
       pure (Just r)
 
+-- | Run ticks up to but excluding the given tick.
+--
+-- Afterwards, 'tickNow' will be equal to @tick@.
 runTicksTo
   :: (Monad m, Monoid a) => RunSched t m -> (Tick -> t -> m a) -> Tick -> m a
 runTicksTo runS runTask tick = whileJustM $ do

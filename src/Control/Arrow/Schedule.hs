@@ -46,6 +46,7 @@ whileJustA act = (, mempty) ^>> go
 -- impure (e.g. reference to a 'Control.Lens.Mutable.AsLens').
 type RunSched t a = forall i o . ((i, Schedule t) -> (o, Schedule t)) -> a i o
 
+-- | Run all tasks in the current tick, and tick over.
 runTick
   :: (ArrowChoice a, Monoid o) => RunSched t a -> a (Tick, t) o -> a Tick o
 runTick runS runTickTask = whileJustA $ proc tick -> do
@@ -58,6 +59,9 @@ runTick runS runTickTask = whileJustA $ proc tick -> do
       () <- runS (imodA releaseTask) -< t
       returnA -< Just r
 
+-- | Run ticks up to but excluding the given tick.
+--
+-- Afterwards, 'tickNow' will be equal to @tick@.
 runTicksTo
   :: (ArrowChoice a, Monoid o) => RunSched t a -> a (Tick, t) o -> a Tick o
 runTicksTo runS runTask = whileJustA $ proc tick -> do
