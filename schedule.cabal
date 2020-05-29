@@ -63,7 +63,7 @@ Author:              Ximin Luo
 Maintainer:          infinity0@pwned.gg
 Copyright:           2016-2020 Ximin Luo
 Category:            Control, Schedule, Delay, Time, Timeout
-Tested-With:         GHC >= 8.8.3
+Tested-With:         GHC >= 8.10.1
 Extra-Source-Files:  CHANGELOG.md
 
 Source-Repository head
@@ -80,10 +80,12 @@ Common generic
   Build-Depends: base >= 4 && < 5,
   GHC-Options:
     -Wall
+    -Wcompat
     -Wno-unused-matches
     -Wredundant-constraints
     -Wincomplete-record-updates
     -Wincomplete-uni-patterns
+    -Wunused-packages
   if flag(dev)
     GHC-Options:
       -Werror
@@ -109,8 +111,6 @@ Library
     , stm
     , time                    >= 1.5
     , system-time-monotonic   >= 0.2
-    -- for Control.Monad.Primitive.*
-    , primitive
     -- for Data.Schedule.Applied
     , transformers
   HS-Source-Dirs: src
@@ -131,7 +131,6 @@ Test-Suite doctests
   GHC-Options: -threaded
   Build-Depends:
       doctest
-    , schedule
   HS-Source-Dirs: test
   Type: exitcode-stdio-1.0
   Main-Is: DocTests.hs
@@ -141,16 +140,14 @@ Test-Suite unit
   GHC-Options: -threaded
   Build-Depends:
       tasty
-    , tasty-quickcheck
     , tasty-hunit
-    , checkers
     , schedule
     , lens
     -- Control.Monad.ScheduleTest
     , primitive
     , transformers
     -- Control.Static.ScheduleTest
-    , mutable-lens (>= 0.3)
+    , mutable-lens (>= 0.4)
     , static
   HS-Source-Dirs: test
   Type: exitcode-stdio-1.0

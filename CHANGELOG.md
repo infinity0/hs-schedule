@@ -4,6 +4,7 @@
 
 * Add instances for Binary and Serialise.
 * Add tests based on Control.Static.
+* Update to GHC 8.10.1
 
 ## 0.3.0.0 -- 2020-04-03
 

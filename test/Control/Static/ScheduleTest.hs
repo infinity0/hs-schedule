@@ -16,6 +16,7 @@
 
 -- this is for a TH expression so not a runtime issue
 -- sadly GHC doesn't let us disable this per-expression
+-- https://gitlab.haskell.org/ghc/ghc/issues/18260
 {-# OPTIONS_GHC -Wno-error=incomplete-uni-patterns #-}
 
 module Control.Static.ScheduleTest where
