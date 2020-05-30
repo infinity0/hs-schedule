@@ -50,13 +50,14 @@ import           Data.Rsv.RMMap                   (RMMap (..), empty)
 import           Data.Schedule.Internal
 
 
-data SomeArg = CountdownArg !TArg deriving (Eq, Ord, Show)
+data SomeArg = CountdownArg !TArg
+  deriving (Eq, Ord, Show)
 instance RepVal SomeArg TArg k where
   toRep _ = CountdownArg
   fromRep _ (CountdownArg i) = Right i
 
-data TEnv m t = TEnv {
-    cRunSched  :: !(RunSched t m)
+data TEnv m t = TEnv
+  { cRunSched  :: !(RunSched t m)
   , cTaskPrism :: !(Prism' t (ClosureApply SomeArg))
   }
 type TArg = Tick

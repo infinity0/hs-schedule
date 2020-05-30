@@ -21,7 +21,8 @@ The type @c@ is the computational context where clock operations occur, e.g. a
 Clock implementations /must/ be monotonic. See "System.Time.Monotonic" for an
 example on how to wrap non-monotonic clocks to be monotonic.
 -}
-data Clock c = Clock {
+data Clock c = Clock
+  {
     -- | Get the current time.
     clockNow   :: !(c Tick)
     {-| Suspend the current computation for a given number of ticks.
@@ -83,14 +84,14 @@ data Clock c = Clock {
     skipping/ignoring any of them.
     -}
   , clockTimer :: !(forall a. TickDelta -> c a -> c (Either Tick a))
-}
+  }
 
 -- | Run 'clockDelay' then 'clockNow'.
 clockTick :: Monad c => Clock c -> TickDelta -> c Tick
 clockTick clock d = clockDelay clock d >> clockNow clock
 
 -- | See 'clockWith' for details on what this is for.
-data Clocked c a = Clocked {
-    runClocked :: !(c (Either Tick a))
+data Clocked c a = Clocked
+  { runClocked :: !(c (Either Tick a))
   , finClocked :: !(c ())
   }

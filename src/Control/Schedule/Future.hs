@@ -63,13 +63,14 @@ An 'SExpect' tracks the 'SFuture's that it's waiting on, indexed by type @wi@,
 along with the results of the 'SFuture's that it previously waited on, that
 have now given a result back.
 -}
-data SExpect wi tk = SExpect {
-    seExpects :: !(OMap wi (Task tk))
+data SExpect wi tk = SExpect
+  { seExpects :: !(OMap wi (Task tk))
     -- ^ SFutures we're waiting for, with our timeout waiting for them.
     --
     -- Note that the 'SFuture' might have its own separate timeout which is
     -- different; this @t@ timeout is when *we* stop waiting on it.
-  } deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
+  }
+  deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
 makeLensesFor ((\x -> (x, "_" <> x)) <$> ["seExpects"]) ''SExpect
 
 instance Ord wi => Semigroup (SExpect wi tk) where
@@ -137,11 +138,11 @@ sExpectFuture lsf lse lsch sfi sei d tk s0 = case status of
     SFWaiting sfWaiting ->
       let (lt, s1) = s0 & lsch %%~ after d tk
           s2 =
-              s1
+            s1
                 -- SExpect add expecting, set timeout
-                & (lse . _seExpects . at sfi ?~ lt)
+              & (lse . _seExpects . at sfi ?~ lt)
                 -- SFuture add sfWaiting
-                & (lsf .~ SFWaiting (sfWaiting & contains sei .~ True))
+              & (lsf .~ SFWaiting (sfWaiting & contains sei .~ True))
       in  (Right Nothing, s2)
     SFSettled r -> do
       (Right (Just r), s0)
@@ -173,12 +174,12 @@ sExpectCancel lsf lse lsch sfi sei s0 = case status of
     (Left $ SFEInvalidPrecondition (Expecting ()) NotExpecting, s0)
   Expecting (sfWaiting, lt) ->
     let s1 =
-            s0
+          s0
             -- SExpect drop expects, clear timeout
-              & (lsch %~ (snd . cancel_ lt))
-              & (lse . _seExpects . at sfi .~ Nothing)
+            & (lsch %~ (snd . cancel_ lt))
+            & (lse . _seExpects . at sfi .~ Nothing)
             -- SFuture drop sfWaiting
-              & (lsf .~ SFWaiting (sfWaiting & contains sei .~ False))
+            & (lsf .~ SFWaiting (sfWaiting & contains sei .~ False))
     in  (Right (), s1)
   where status = sCheckStatus lsf lse sfi sei s0
 

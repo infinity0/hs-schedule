@@ -54,10 +54,11 @@ import qualified Data.Rsv.Common as R (checkHandle)
 
 type Entries a = Seq (RHandle, a)
 
-data RMMap k a = RMMap {
-  handles :: !RHandles,
-  content :: !(M.Map k (Entries a))
-} deriving (Show, Read, Generic, Binary, Serialise, Eq)
+data RMMap k a = RMMap
+  { handles :: !RHandles
+  , content :: !(M.Map k (Entries a))
+  }
+  deriving (Show, Read, Generic, Binary, Serialise, Eq)
 makeLensesFor ((\x -> (x, "_" <> x)) <$> ["handles", "content"]) ''RMMap
 
 data Delete k a = Delete !k !RHandle

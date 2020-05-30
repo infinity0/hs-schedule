@@ -44,12 +44,13 @@ data TaskStatus t =
 -- | The state of all scheduled pending tasks.
 --
 -- @t@ is the type of task-params.
-data Schedule t = Schedule {
-    now     :: !Tick
+data Schedule t = Schedule
+  { now     :: !Tick
   , tasks   :: !(RMMap Tick t)
   , pending :: !(S.Set (Task t))
   , running :: !(Maybe (Task t, t))
-} deriving (Show, Read, Generic, Binary, Serialise, Eq)
+  }
+  deriving (Show, Read, Generic, Binary, Serialise, Eq)
 
 newSchedule :: Schedule t
 newSchedule =
