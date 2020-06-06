@@ -44,7 +44,7 @@ whileJustM :: (Monad m, Monoid a) => m (Maybe a) -> m a
 whileJustM act = go mempty
  where
   go accum = act >>= \case
-    Just r  -> go (accum <> r)
+    Just r  -> go $! accum <> r
     Nothing -> pure accum
 
 -- | Convert a modification function into a state transition function.
