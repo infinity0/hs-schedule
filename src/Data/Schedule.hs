@@ -26,6 +26,7 @@ module Data.Schedule
   -- | = Other general utilities
   -- General monad / state-transition utils to be exported to another library
   , whileJustM
+  , untilJustM
   , modST
   , getST
   , stA
@@ -39,13 +40,23 @@ import           Data.Schedule.Internal
 
 -- | Run an action, accumulating its monoid result until it returns @Nothing@.
 --
--- TODO: export to upstream extra
+-- https://github.com/ndmitchell/extra/pull/59
 whileJustM :: (Monad m, Monoid a) => m (Maybe a) -> m a
 whileJustM act = go mempty
  where
   go accum = act >>= \case
     Just r  -> go $! accum <> r
     Nothing -> pure accum
+
+-- | Run an action until it returns @'Just' a@.
+--
+-- https://github.com/ndmitchell/extra/pull/59
+untilJustM :: Monad m => m (Maybe a) -> m a
+untilJustM act = go
+ where
+  go = act >>= \case
+    Just r  -> pure r
+    Nothing -> go
 
 -- | Convert a modification function into a state transition function.
 modST :: (s -> s) -> (s -> ((), s))

@@ -48,7 +48,7 @@ countdown runSched _ (TTask x) = do
 
 smoke
   :: (MonadTrans tm, Monad (tm IO))
-  => (Clock IO -> IO (TickDelta -> IO (Either Tick i)))
+  => (IOClock -> IO (TickDelta -> IO (Either Tick i)))
   -> (Schedule t -> tm IO [Tick] -> IO ([Tick], Schedule TTask))
   -> RunSched TTask (tm IO)
   -> IO ()

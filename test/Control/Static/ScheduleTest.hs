@@ -84,7 +84,7 @@ mkDefStaticTab ['countdown]
 
 smoke
   :: (C tm IO, MonadFail (tm IO), Eq t, Show t)
-  => (Clock IO -> IO (TickDelta -> IO (Either Tick i)))
+  => (IOClock -> IO (TickDelta -> IO (Either Tick i)))
   -> (Schedule t -> tm IO TRes -> IO (TRes, Schedule t))
   -> TEnv (tm IO) t
   -> IO ()
