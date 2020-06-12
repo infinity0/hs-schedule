@@ -7,15 +7,14 @@ module Data.Schedule.Internal where
 
 -- external
 import           Codec.Serialise (Serialise)
-import           Data.Bifunctor  (first)
+import           Data.Bifunctor  (Bifunctor (..))
 import           Data.Binary     (Binary)
-import           Data.Text       (Text, pack)
+import           Data.Text       (Text, pack, unpack)
 import           Data.Word       (Word64)
 import           GHC.Generics    (Generic)
 import           GHC.Stack       (HasCallStack)
 
 -- internal
-import qualified Data.Map.Strict as M
 import qualified Data.Rsv.RMMap  as RM
 import qualified Data.Set        as S
 
@@ -52,6 +51,17 @@ data Schedule t = Schedule
   }
   deriving (Show, Read, Generic, Binary, Serialise, Eq)
 
+dbgMapSchedule :: (a -> d) -> Schedule a -> Schedule d
+dbgMapSchedule f Schedule {..} = Schedule
+  { now     = now
+  , tasks   = RM.unsafeMap f tasks
+  , pending = S.map mapTask pending
+  , running = fmap (bimap mapTask f) running
+  }
+ where
+  mapTask :: Task a -> Task b
+  mapTask (Task d) = Task (RM.unsafeMapDelete d)
+
 newSchedule :: Schedule t
 newSchedule =
   Schedule { now = 0, tasks = RM.empty, pending = mempty, running = Nothing }
@@ -73,22 +83,36 @@ newSchedule =
 checkValidity :: Schedule t -> Maybe Text
 checkValidity Schedule {..} =
   let tasksValid = RM.checkValidity tasks
-      tasks'     = RM.content tasks
-      nowMatch   = case M.lookupMin tasks' of
-        Nothing                -> True
-        Just (nextTaskTick, _) -> now <= nextTaskTick
+      nowMatch   = case RM.lookupMinKey tasks of
+        Nothing           -> True
+        Just nextTaskTick -> now <= nextTaskTick
       pending' = S.fromList $ Task <$> RM.toList tasks
+      pendingErrMsg =
+        "inconsistent pending tasks: \nactual: "
+          <> show pending
+          <> "\nexpected: "
+          <> show pending'
   in  case tasksValid of
         Just e -> Just e
-        Nothing
-          | not nowMatch        -> Just $ pack "has tasks for before now"
-          | pending /= pending' -> Just $ pack "inconsistent pending tasks"
-          | otherwise           -> Nothing
+        Nothing | not nowMatch        -> Just $ pack "has tasks for before now"
+                | pending /= pending' -> Just $ pack pendingErrMsg
+                | otherwise           -> Nothing
 
 -- | Check that an existing task is consistent with the current state of the
 -- structure, i.e. it is not a task that could be generated in the future.
 checkTask :: Schedule t -> Task t -> Bool
 checkTask sch (Task d) = RM.checkHandle (tasks sch) d
+
+ensureValidity :: HasCallStack => Schedule t -> Schedule t -> Schedule t
+ensureValidity s' s = case checkValidity s of
+  Nothing -> s
+  Just e ->
+    error
+      $  unpack e
+      <> "\nbefore:\n"
+      <> show (dbgMapSchedule (const ()) s')
+      <> "\nafter:\n"
+      <> show (dbgMapSchedule (const ()) s)
 
 -- | Get the current tick, whose tasks have not all run yet.
 --
@@ -108,7 +132,7 @@ tickPrev = pred . now
 -- see "Control.Clock" for a starting point.
 ticksToIdle :: Schedule t -> Maybe TickDelta
 ticksToIdle Schedule {..} = do
-  (m, _) <- M.lookupMin (RM.content tasks)
+  m <- RM.lookupMinKey tasks
   pure (fromIntegral (m - now))
 
 taskStatus :: HasCallStack => Task t -> Schedule t -> TaskStatus t
@@ -132,11 +156,11 @@ taskStatus t@(Task d) Schedule {..} = if S.member t pending
 -- >>> s = newSchedule
 -- >>> let (t, s') = after 1 (TPar t) s -- @t@ on LHS & RHS, tying the knot
 -- >>> t
--- Task (Delete 1 (RHandle {getHandle = 0}))
+-- Task (Delete 1 (RHandle 0))
 -- >>> taskStatus t s
 -- TaskNotPending
 -- >>> taskStatus t s'
--- TaskPending 1 (TPar (Task (Delete 1 (RHandle {getHandle = 0}))))
+-- TaskPending 1 (TPar (Task (Delete 1 (RHandle 0))))
 -- >>> taskStatus t s' == TaskPending 1 (TPar t)
 -- True
 --
@@ -165,10 +189,9 @@ cancel_ t s = ((), snd $ cancel t s)
 -- a task unconditionally even if it was already cancelled or run, use both
 -- 'cancel_' and 'after' in combination.
 renew :: TickDelta -> Task t -> Schedule t -> (Maybe (Task t), Schedule t)
-renew tDelta (Task d) s0 = case RM.unqueue d (tasks s0) of
-  (Nothing, _) -> (Nothing, s0)
-  (Just (_, tParams), tasks1) ->
-    first Just $ after tDelta tParams (s0 { tasks = tasks1 })
+renew tDelta t s0 = case cancel t s0 of
+  (Nothing     , s1) -> (Nothing, s1)
+  (Just tParams, s1) -> first Just $ after tDelta tParams s1
 
 -- | Pop the next task to be run in this tick.
 -- If there are no more tasks remaining, then advance to the next tick.

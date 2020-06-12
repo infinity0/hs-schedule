@@ -15,10 +15,10 @@ to the delete operation.
 __This API is experimental at the moment, and parts of it may change.__
 -}
 module Data.Rsv.RMMap
-  ( RMMap(..)
-  , _handles
-  , _content
-  , Delete
+  ( Delete
+  , unsafeMapDelete
+  , RMMap
+  , unsafeMap
   , checkValidity
   , checkHandle
   , empty
@@ -26,6 +26,7 @@ module Data.Rsv.RMMap
   , isEmpty
   , (!)
   , toList
+  , lookupMinKey
   -- * Write operations
   , enqueue
   , unqueue
@@ -63,6 +64,13 @@ makeLensesFor ((\x -> (x, "_" <> x)) <$> ["handles", "content"]) ''RMMap
 
 data Delete k a = Delete !k !RHandle
   deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord)
+
+unsafeMapDelete :: Delete k a -> Delete k b
+unsafeMapDelete (Delete k h) = Delete k h
+
+unsafeMap :: (a -> b) -> RMMap k a -> RMMap k b
+unsafeMap f (RMMap h c) =
+  RMMap { handles = h, content = M.map (fmap (fmap f)) c }
 
 toPair
   :: Iso
@@ -113,6 +121,9 @@ m ! k = case M.lookup k $ content m of
 toList :: RMMap k a -> [Delete k a]
 toList (RMMap _ content') =
   M.toList content' >>= \(k, hh) -> F.toList hh & fmap (Delete k . fst)
+
+lookupMinKey :: RMMap k a -> Maybe k
+lookupMinKey (RMMap _ c) = fst <$> M.lookupMin c
 
 -- | Append an item on a key, returning a handle to remove it with.
 -- The same item may be added twice, in which case it will occupy multiple

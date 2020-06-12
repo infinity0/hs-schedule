@@ -99,8 +99,8 @@ instance Clock IO IOClock where
           let t = r * fromIntegral d * 16 `div` 15 - remain
           clockDelayPico t
 
-  clockWith c = clockWithIO c
-  clockTimer c = clockTimerIO c
+  clockWith  = clockWithIO
+  clockTimer = clockTimerIO
 
 -- assert that a writeTBQueue is non-blocking
 writeTBQueue' :: HasCallStack => TBQueue a -> a -> STM ()

@@ -46,7 +46,7 @@ import           Data.Primitive.MutVar            (newMutVar, readMutVar)
 -- internal
 import           Control.Clock.IO
 import           Control.Monad.Schedule
-import           Data.Rsv.RMMap                   (RMMap (..), empty)
+import           Data.Rsv.RMMap                   (isEmpty)
 import           Data.Schedule.Internal
 
 
@@ -100,7 +100,7 @@ smoke mkRecv runWithNew env = do
         lift (recv d) >>= mkOutput cRunSched run undefined
   assertEqual "results" [top, top - 1 .. 0] r
   assertBool "schedule.now" $ now s > top
-  assertEqual "schedule.tasks" (empty { handles = handles (tasks s) }) (tasks s)
+  assertBool "schedule.tasks" (isEmpty (tasks s))
   assertEqual "schedule.*" (newSchedule { now = now s, tasks = tasks s }) s
   assertEqual "schedule valid" (checkValidity s) Nothing
  where

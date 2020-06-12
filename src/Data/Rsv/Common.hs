@@ -47,7 +47,7 @@ import           GHC.Stack              (HasCallStack)
 -- ones. 'checkHandle' is used to check this.
 newtype RHandles = RHandles { getNextHandle :: RHandle }
   deriving (Show, Read, Generic, Binary, Serialise, Eq)
-newtype RHandle = RHandle { getHandle :: Word64 }
+newtype RHandle = RHandle Word64
   deriving (Show, Read, Generic, Binary, Serialise, Eq, Ord, Enum, Bounded)
 
 newHandles :: RHandles
