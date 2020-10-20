@@ -28,6 +28,7 @@ where
 
 -- external
 import qualified Data.Sequence.Internal as Seq
+import qualified Data.Strict            as Z
 
 import           Codec.Serialise        (Serialise)
 import           Data.Binary            (Binary)
@@ -71,11 +72,15 @@ withHandle doWith item (handles0, container0) =
 sEnqueue :: a -> Seq a -> Seq a
 sEnqueue x slm = slm |> x
 
-sUnqueue :: (HasCallStack, Eq k) => k -> Seq (k, a) -> (Maybe a, Seq (k, a))
-sUnqueue idx' slm = (snd <$> found', others)
+sUnqueue
+  :: (HasCallStack, Eq k)
+  => k
+  -> Seq (Z.Pair k a)
+  -> (Maybe a, Seq (Z.Pair k a))
+sUnqueue idx' slm = (Z.snd <$> found', others)
  where
   -- TODO: this is O(n); maybe it should be more efficient...
-  (Seq.Seq found, others) = Seq.partition ((== idx') . fst) $ slm
+  (Seq.Seq found, others) = Seq.partition ((== idx') . Z.fst) $ slm
   found'                  = case found of
     Seq.EmptyT              -> Nothing
     Seq.Single (Seq.Elem x) -> Just x

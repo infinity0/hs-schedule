@@ -6,6 +6,8 @@
 module Data.Schedule.Internal where
 
 -- external
+import qualified Data.Strict     as Z
+
 import           Codec.Serialise (Serialise)
 import           Data.Bifunctor  (Bifunctor (..))
 import           Data.Binary     (Binary)
@@ -47,7 +49,7 @@ data Schedule t = Schedule
   { now     :: !Tick
   , tasks   :: !(RMMap Tick t)
   , pending :: !(S.Set (Task t))
-  , running :: !(Maybe (Task t, t))
+  , running :: !(Z.Maybe (Z.Pair (Task t) t))
   }
   deriving (Show, Read, Generic, Binary, Serialise, Eq)
 
@@ -64,7 +66,7 @@ dbgMapSchedule f Schedule {..} = Schedule
 
 newSchedule :: Schedule t
 newSchedule =
-  Schedule { now = 0, tasks = RM.empty, pending = mempty, running = Nothing }
+  Schedule { now = 0, tasks = RM.empty, pending = mempty, running = Z.Nothing }
 
 -- | Check the schedule that its internal invariants all hold.
 --
@@ -141,8 +143,8 @@ taskStatus t@(Task d) Schedule {..} = if S.member t pending
     (Nothing             , _) -> error "inconsistent pending tasks"
     (Just (tick, tParams), _) -> TaskPending tick tParams
   else case running of
-    Just (t', tParams) | t == t' -> TaskRunning tParams
-    _                            -> TaskNotPending
+    Z.Just (t' Z.:!: tParams) | t == t' -> TaskRunning tParams
+    _                                   -> TaskNotPending
 
 -- | Schedule a task to run after a given number of ticks.
 --
@@ -197,8 +199,8 @@ renew tDelta t s0 = case cancel t s0 of
 -- If there are no more tasks remaining, then advance to the next tick.
 popOrTick :: HasCallStack => Schedule t -> (Maybe (Task t, t), Schedule t)
 popOrTick s0@(Schedule now0 tasks0 pending0 running) = case running of
-  Just _  -> error "tried to pop tick while task was running"
-  Nothing -> case RM.dequeue now0 tasks0 of
+  Z.Just _  -> error "tried to pop tick while task was running"
+  Z.Nothing -> case RM.dequeue now0 tasks0 of
     (Nothing, _) -> (Nothing, s0 { now = succ now0 })
     (Just (d, tParams), tasks1) ->
       let pending1 = S.delete (Task d) pending0
@@ -209,9 +211,9 @@ popOrTick s0@(Schedule now0 tasks0 pending0 running) = case running of
 -- This prevents popOrTick from being called, or other tasks from running.
 -- It is not re-entrant; only one task is supposed to run at once.
 acquireTask :: HasCallStack => (Task t, t) -> Schedule t -> Schedule t
-acquireTask k s = case running s of
-  Just _ -> error "tried to acquire on unreleased task"
-  _      -> s { running = Just k }
+acquireTask (k, t) s = case running s of
+  Z.Just _ -> error "tried to acquire on unreleased task"
+  _        -> s { running = Z.Just (k Z.:!: t) }
 
 -- | Unlock the schedule after running a particular task.
 --
@@ -219,5 +221,5 @@ acquireTask k s = case running s of
 -- It is not re-entrant; only one task is supposed to run at once.
 releaseTask :: HasCallStack => Task t -> Schedule t -> Schedule t
 releaseTask t s = case running s of
-  Just (t', _) | t' == t -> s { running = Nothing }
-  _                      -> error "tried to release on unacquired task"
+  Z.Just (t' Z.:!: _) | t' == t -> s { running = Z.Nothing }
+  _                             -> error "tried to release on unacquired task"

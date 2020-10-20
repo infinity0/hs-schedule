@@ -35,17 +35,19 @@ module Data.Rsv.RMMap
 where
 
 -- external
+import qualified Data.Foldable   as F
+import qualified Data.Map.Strict as M
+import qualified Data.Strict     as Z
+
 import           Codec.Serialise (Serialise)
 import           Control.Lens    (Iso, anon, at, iso, makeLensesFor, (%%~),
                                   (%~), (&))
 import           Data.Bifunctor  (first)
 import           Data.Binary     (Binary)
-import qualified Data.Foldable   as F (toList)
 import           Data.Maybe      (mapMaybe)
 import           Data.Text       (Text, pack)
 import           GHC.Generics    (Generic)
 
-import qualified Data.Map.Strict as M
 import           Data.Sequence   (Seq (..))
 
 -- internal
@@ -53,7 +55,7 @@ import           Data.Rsv.Common hiding (checkHandle)
 import qualified Data.Rsv.Common as R (checkHandle)
 
 
-type Entries a = Seq (RHandle, a)
+type Entries a = Seq (Z.Pair RHandle a)
 
 data RMMap k a = RMMap
   { handles :: !RHandles
@@ -97,7 +99,9 @@ toPair = iso (\(RMMap x y) -> (x, y)) (uncurry RMMap)
 checkValidity :: RMMap k a -> Maybe Text
 checkValidity (RMMap handles' content') =
   let res = flip mapMaybe (M.toList content') $ \(k, hh) -> do
-        if not (all (R.checkHandle handles' . fst) hh) then Just k else Nothing
+        if not (all (R.checkHandle handles' . Z.fst) hh)
+          then Just k
+          else Nothing
   in  case res of
         [] -> Nothing
         e  -> Just $ pack "some handles were reused in the input"
@@ -115,12 +119,12 @@ isEmpty sm = M.null m || all null m where m = content sm
 
 (!) :: Ord k => RMMap k a -> k -> Seq a
 m ! k = case M.lookup k $ content m of
-  Just l  -> snd <$> l
+  Just l  -> Z.snd <$> l
   Nothing -> mempty
 
 toList :: RMMap k a -> [Delete k a]
 toList (RMMap _ content') =
-  M.toList content' >>= \(k, hh) -> F.toList hh & fmap (Delete k . fst)
+  M.toList content' >>= \(k, hh) -> F.toList hh & fmap (Delete k . Z.fst)
 
 lookupMinKey :: RMMap k a -> Maybe k
 lookupMinKey (RMMap _ c) = fst <$> M.lookupMin c
@@ -133,7 +137,8 @@ enqueue i@(k, _) m = m & toPair %%~ withHandle enq i & first (Delete k)
  where
   enq
     :: Ord k => (RHandle, (k, a)) -> M.Map k (Entries a) -> M.Map k (Entries a)
-  enq (h', (k', v')) m' = m' & at k' . anon mempty null %~ sEnqueue (h', v')
+  enq (h', (k', v')) m' =
+    m' & at k' . anon mempty null %~ sEnqueue (h' Z.:!: v')
 
 req :: (a -> b) -> (Maybe a, c) -> (Maybe b, c)
 req = first . fmap
@@ -146,5 +151,5 @@ unqueue (Delete k idx) m =
 
 -- | Remove an item from a key, from the front. Return Nothing if key is empty.
 dequeue :: Ord k => k -> RMMap k a -> (Maybe (Delete k a, a), RMMap k a)
-dequeue k m =
-  m & _content . at k . anon mempty null %%~ sDequeue & req (first (Delete k))
+dequeue k m = m & _content . at k . anon mempty null %%~ sDequeue & req
+  (Z.toLazy . first (Delete k))

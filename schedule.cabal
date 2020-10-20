@@ -99,8 +99,9 @@ Library
   Import: generic
   Build-Depends:
       binary
-    , serialise
     , extra                    >= 1.7.4
+    , serialise
+    , strict
     -- for Data.Rsv.*
     , containers
     , lens
