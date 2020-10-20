@@ -15,6 +15,7 @@ import           Control.Lens.Mutable             (AsLens (..), MonadLST,
                                                    PrimOpGroup (..), S (..),
                                                    runSLens)
 import           Control.Monad                    (when)
+import           Control.Monad.Extra              (whileJustM)
 import           Control.Monad.Trans.Class        (MonadTrans (lift))
 import           Control.Monad.Trans.Maybe        (MaybeT (MaybeT, runMaybeT))
 import           Control.Monad.Trans.Reader       (ReaderT (..), ask)

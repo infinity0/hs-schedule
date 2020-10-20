@@ -19,7 +19,7 @@ module Control.Monad.Schedule
 where
 
 -- external
-import           Control.Monad.Extra    (whenMaybe)
+import           Control.Monad.Extra    (whenMaybe, whileJustM)
 import           Data.Functor.Identity  (Identity (..))
 import           Data.Maybe             (fromMaybe)
 

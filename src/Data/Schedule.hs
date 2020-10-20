@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase    #-}
 {-# LANGUAGE TupleSections #-}
 
 {-| Data structure representing scheduled tasks.
@@ -24,9 +23,6 @@ module Data.Schedule
   , cancel_
   , renew
   -- | = Other general utilities
-  -- General monad / state-transition utils to be exported to another library
-  , whileJustM
-  , untilJustM
   , modST
   , getST
   , stA
@@ -37,26 +33,6 @@ where
 
 import           Data.Schedule.Internal
 
-
--- | Run an action, accumulating its monoid result until it returns @Nothing@.
---
--- https://github.com/ndmitchell/extra/pull/59
-whileJustM :: (Monad m, Monoid a) => m (Maybe a) -> m a
-whileJustM act = go mempty
- where
-  go accum = act >>= \case
-    Just r  -> go $! accum <> r
-    Nothing -> pure accum
-
--- | Run an action until it returns @'Just' a@.
---
--- https://github.com/ndmitchell/extra/pull/59
-untilJustM :: Monad m => m (Maybe a) -> m a
-untilJustM act = go
- where
-  go = act >>= \case
-    Just r  -> pure r
-    Nothing -> go
 
 -- | Convert a modification function into a state transition function.
 modST :: (s -> s) -> (s -> ((), s))

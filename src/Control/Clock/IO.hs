@@ -31,7 +31,7 @@ import           Control.Concurrent.STM.TBQueue (TBQueue, isEmptyTBQueue,
 import           Control.Exception              (AsyncException (..),
                                                  handleJust, throwTo)
 import           Control.Monad                  (forever, unless, when)
-import           Data.Schedule                  (untilJustM)
+import           Control.Monad.Extra            (untilJustM)
 import           Data.Time.Clock                (DiffTime,
                                                  diffTimeToPicoseconds,
                                                  picosecondsToDiffTime)

@@ -100,7 +100,7 @@ Library
   Build-Depends:
       binary
     , serialise
-    , extra
+    , extra                    >= 1.7.4
     -- for Data.Rsv.*
     , containers
     , lens
@@ -109,8 +109,8 @@ Library
     , async
     , safe
     , stm
-    , time                    >= 1.5
-    , system-time-monotonic   >= 0.2
+    , time                     >= 1.5
+    , system-time-monotonic    >= 0.2
     -- for Data.Schedule.Applied
     , transformers
   HS-Source-Dirs: src
@@ -141,13 +141,14 @@ Test-Suite unit
   Build-Depends:
       tasty
     , tasty-hunit
+    , extra                    >= 1.7.4
     , schedule
     , lens
     -- Control.Monad.ScheduleTest
     , primitive
     , transformers
     -- Control.Static.ScheduleTest
-    , mutable-lens (>= 0.4)
+    , mutable-lens             >= 0.4
     , static
   HS-Source-Dirs: test
   Type: exitcode-stdio-1.0
