@@ -40,8 +40,7 @@ import qualified Data.Map.Strict as M
 import qualified Data.Strict     as Z
 
 import           Codec.Serialise (Serialise)
-import           Control.Lens    (Iso, anon, at, iso, makeLensesFor, (%%~),
-                                  (%~), (&))
+import           Control.Lens    (Iso, anon, iso, makeLensesFor, (%%~), (&))
 import           Data.Bifunctor  (first)
 import           Data.Binary     (Binary)
 import           Data.Maybe      (mapMaybe)
@@ -54,6 +53,15 @@ import           Data.Sequence   (Seq (..))
 import           Data.Rsv.Common hiding (checkHandle)
 import qualified Data.Rsv.Common as R (checkHandle)
 
+
+at
+  :: (Functor f, Ord k)
+  => k
+  -> (Maybe a -> f (Maybe a))
+  -> M.Map k a
+  -> f (M.Map k a)
+at k f = M.alterF f k
+{-# INLINE at #-}
 
 type Entries a = Seq (Z.Pair RHandle a)
 
@@ -138,7 +146,7 @@ enqueue i@(k, _) m = m & toPair %%~ withHandle enq i & first (Delete k)
   enq
     :: Ord k => (RHandle, (k, a)) -> M.Map k (Entries a) -> M.Map k (Entries a)
   enq (h', (k', v')) m' =
-    m' & at k' . anon mempty null %~ sEnqueue (h' Z.:!: v')
+    snd $! m' & at k' . anon mempty null %%~ (\x -> ((), sEnqueue (h' Z.:!: v') $! x))
 
 req :: (a -> b) -> (Maybe a, c) -> (Maybe b, c)
 req = first . fmap
