@@ -1,3 +1,4 @@
+{-# LANGUAGE BangPatterns               #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
@@ -70,7 +71,7 @@ withHandle doWith item (handles0, container0) =
   in  (handle, (handles1, container1))
 
 sEnqueue :: a -> Seq a -> Seq a
-sEnqueue x slm = slm |> x
+sEnqueue !x slm = slm |> x
 
 sUnqueue
   :: (HasCallStack, Eq k)
