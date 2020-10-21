@@ -36,7 +36,7 @@ import           Data.Schedule.Internal
 
 -- | Convert a modification function into a state transition function.
 modST :: (s -> s) -> (s -> ((), s))
-modST f s = ((), f s)
+modST f s = ((), f $! s)
 {-# INLINE modST #-}
 
 -- | Convert a getter function into a state transition function.

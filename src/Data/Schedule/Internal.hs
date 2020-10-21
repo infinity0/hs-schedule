@@ -183,7 +183,7 @@ cancel (Task d) s0@(Schedule _ tasks0 pending0 _) = case RM.unqueue d tasks0 of
 
 -- | Cancel a task, discarding the result.
 cancel_ :: Task t -> Schedule t -> ((), Schedule t)
-cancel_ t s = ((), snd $ cancel t s)
+cancel_ t s = ((), snd $! cancel t s)
 
 -- | Reschedule a pending task to instead run after a given number of ticks.
 --
