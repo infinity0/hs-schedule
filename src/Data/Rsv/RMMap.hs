@@ -40,20 +40,26 @@ import qualified Data.Map.Strict as M
 import qualified Data.Strict     as Z
 
 import           Codec.Serialise (Serialise)
-import           Control.Lens    (Iso, anon, iso, makeLensesFor, (%%~), (&))
+import           Control.Lens    (Iso, Iso', anon, iso, makeLensesFor, (%%~),
+                                  (&))
 import           Data.Bifunctor  (first)
 import           Data.Binary     (Binary)
 import           Data.Maybe      (mapMaybe)
+import           Data.Sequence   (Seq (..))
 import           Data.Text       (Text, pack)
 import           GHC.Generics    (Generic)
-
-import           Data.Sequence   (Seq (..))
 
 -- internal
 import           Data.Rsv.Common hiding (checkHandle)
 import qualified Data.Rsv.Common as R (checkHandle)
 
 
+-- convenience wrapper around 'anon', see its documentation for details
+nom :: (Monoid (f a), Foldable f) => Iso' (Maybe (f a)) (f a)
+nom = anon mempty null
+{-# INLINE nom #-}
+
+-- strict version of 'at'
 at
   :: (Functor f, Ord k)
   => k
@@ -126,7 +132,7 @@ isEmpty :: RMMap k a -> Bool
 isEmpty sm = M.null m || all null m where m = content sm
 
 (!) :: Ord k => RMMap k a -> k -> Seq a
-m ! k = case M.lookup k $ content m of
+(!) m k = case M.lookup k $ content m of
   Just l  -> Z.snd <$> l
   Nothing -> mempty
 
@@ -146,7 +152,7 @@ enqueue i@(k, _) m = m & toPair %%~ withHandle enq i & first (Delete k)
   enq
     :: Ord k => (RHandle, (k, a)) -> M.Map k (Entries a) -> M.Map k (Entries a)
   enq (h', (k', v')) m' =
-    snd $! m' & at k' . anon mempty null %%~ (\x -> ((), sEnqueue (h' Z.:!: v') $! x))
+    snd $ m' & at k' . nom %%~ (\x -> ((), sEnqueue (h' Z.:!: v') x))
 
 req :: (a -> b) -> (Maybe a, c) -> (Maybe b, c)
 req = first . fmap
@@ -155,9 +161,9 @@ req = first . fmap
 -- If the item was already removed, 'Nothing' is returned instead.
 unqueue :: Ord k => Delete k a -> RMMap k a -> (Maybe (k, a), RMMap k a)
 unqueue (Delete k idx) m =
-  m & _content . at k . anon mempty null %%~ sUnqueue idx & req (k, )
+  m & _content . at k . nom %%~ sUnqueue idx & req (k, )
 
 -- | Remove an item from a key, from the front. Return Nothing if key is empty.
 dequeue :: Ord k => k -> RMMap k a -> (Maybe (Delete k a, a), RMMap k a)
-dequeue k m = m & _content . at k . anon mempty null %%~ sDequeue & req
-  (Z.toLazy . first (Delete k))
+dequeue k m =
+  m & _content . at k . nom %%~ sDequeue & req (Z.toLazy . first (Delete k))
