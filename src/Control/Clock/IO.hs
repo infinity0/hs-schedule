@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase            #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE RankNTypes            #-}
 
@@ -11,6 +10,7 @@ module Control.Clock.IO
   , newClock
   , newClock'
   , clockWithIO
+  , clockWithIOs
   , clockTimerIO
   , voidInput
   , module Control.Clock
@@ -18,28 +18,19 @@ module Control.Clock.IO
 where
 
 -- external
-import qualified System.Time.Monotonic          as T
+import qualified System.Time.Monotonic     as T
 
-import           Control.Concurrent             (threadDelay)
-import           Control.Concurrent.Async       (async, asyncThreadId, cancel,
-                                                 link, link2, race)
-import           Control.Concurrent.STM         (STM, atomically, orElse)
-import           Control.Concurrent.STM.TBQueue (TBQueue, isEmptyTBQueue,
-                                                 newTBQueueIO, readTBQueue,
-                                                 tryPeekTBQueue, tryReadTBQueue,
-                                                 writeTBQueue)
-import           Control.Exception              (AsyncException (..),
-                                                 handleJust, throwTo)
-import           Control.Monad                  (forever, unless, when)
-import           Control.Monad.Extra            (untilJustM)
-import           Data.Time.Clock                (DiffTime,
-                                                 diffTimeToPicoseconds,
-                                                 picosecondsToDiffTime)
-import           Data.Void                      (Void)
-import           GHC.Stack                      (HasCallStack)
+import           Control.Concurrent        (threadDelay)
+import           Control.Concurrent.Async  (race)
+import           Control.Monad             (forever, when)
+import           Data.Time.Clock           (DiffTime, diffTimeToPicoseconds,
+                                            picosecondsToDiffTime)
+import           Data.Void                 (Void)
+import           GHC.Stack                 (HasCallStack)
 
 -- internal
 import           Control.Clock
+import           Control.Clock.IO.Internal
 
 
 data Intv = Ps | Ns | Us | Ms | S
@@ -102,61 +93,17 @@ instance Clock IO IOClock where
   clockWith  = clockWithIO
   clockTimer = clockTimerIO
 
--- assert that a writeTBQueue is non-blocking
-writeTBQueue' :: HasCallStack => TBQueue a -> a -> STM ()
-writeTBQueue' q r = do
-  e <- isEmptyTBQueue q
-  unless e $ error "failed to assert non-blocking write on TBQueue"
-  writeTBQueue q r
-
-isUserInterrupt :: AsyncException -> Maybe AsyncException
-isUserInterrupt UserInterrupt = Just UserInterrupt
-isUserInterrupt _             = Nothing
-
 -- | Interleave an action with clock ticks.
-clockWithIO :: IOClock -> IO a -> IO (Clocked IO a)
-clockWithIO clock action = do
-  qi           <- newTBQueueIO 1
-  qo           <- newTBQueueIO 1
-  qt           <- newTBQueueIO 1
+clockWithIO :: IOClock -> IO (Maybe a) -> IO (Clocked IO a)
+clockWithIO clock action = clockWithIOs clock [action]
 
-  -- keep running action
-  actionThread <- async $ forever $ do
-    -- block until we get a request to run action, but don't pop the queue
-    atomically $ do
-      readTBQueue qi
-      writeTBQueue' qi ()
-    r <- action
-    -- pop the queue after we write the result of action
-    atomically $ do
-      writeTBQueue' qo r
-      readTBQueue qi
-  link actionThread
-
-  -- keep producing ticks
-  tickThread <- async $ forever $ do
-    t <- clockTick clock 1
-    atomically $ do
-      _ <- tryReadTBQueue qt -- empty the queue before we write a tick
-      writeTBQueue' qt t
-  link tickThread
-
-  -- Kill both threads if any one of them dies. This ensures that the user
-  -- doesn't need to call fin themselves if anything throws an exception.
-  link2 actionThread tickThread
-
-  let fin = cancel actionThread >> cancel tickThread
-      rethrow e = throwTo (asyncThreadId actionThread) e >> pure Nothing
-      -- we don't expect UserInterrupt in non-interactive mode anyways, so
-      -- just leave the below in for simplicity
-      action' = untilJustM $ handleJust isUserInterrupt rethrow $ do
-        atomically $ tryPeekTBQueue qi >>= \case
-          Nothing -> writeTBQueue qi ()
-          Just () -> pure ()
-        atomically $ fmap Just $ do
-          (Right <$> readTBQueue qo) `orElse` (Left <$> readTBQueue qt)
-
-  pure (Clocked action' fin)
+-- | Interleave several actions together with clock ticks.
+clockWithIOs :: IOClock -> [IO (Maybe a)] -> IO (Clocked IO a)
+clockWithIOs clock actions = do
+  let clock'   = Just . Left <$> clockTick clock 1
+      actions' = ((Right <$>) <$>) <$> actions
+  (act, fin) <- foreverInterleave (const (pure True)) (clock' : actions')
+  pure (Clocked act fin)
 
 clockTimerIO :: IOClock -> TickDelta -> IO a -> IO (Either Tick a)
 clockTimerIO c d = race (clockTick c d)

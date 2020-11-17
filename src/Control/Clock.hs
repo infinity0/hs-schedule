@@ -54,20 +54,24 @@ class Clock m c where
   satisfy the same functionality as the @select@ system call found in common
   operating systems, used with a timeout parameter.
 
-  If @action@ when executed repeatedly gives a sequence of results, then in
-  the expression @clkAct <- 'clockWith' clock action@, a subsequent call to
-  @'runClocked' clkAct@ when executed repeatedly gives the same sequence of
-  results but with ticks interleaved in between them. Executing @'finClocked'
-  clkAct@ closes any resources and invalidates any future calls to @clkAct@.
+  If @action@ when executed repeatedly gives a sequence of results, with
+  'Nothing' meaning EOF, then in the expression @clkAct <- 'clockWith' clock
+  action@, a subsequent call to @'runClocked' clkAct@ when executed repeatedly
+  gives the same sequence of results but with ticks interleaved in between
+  them. Executing @'finClocked' clkAct@ closes any resources and invalidates
+  any future calls to @clkAct@.
 
-  It is not necessary to call 'finClocked' if any part of 'runClocked' (e.g.
-  child threads) throws an exception - implementations will detect these
-  situations and clean these up automatically. This frees the user of this
-  function from having to add extra constraints which would be the case if it
-  had been necessary to run @'Control.Exception.finally' ... (finClocked
-  clkAct)@ as cleanup.
+  If 'runClocked' runs in an exception-capable monad such as 'IO' then one
+  should run 'finClocked' as part of a cleanup phase using something like
+  @finally@ - there are different versions, for example:
+
+  - t'Control.Exception.finally' from "Control.Exception"
+  - t'Control.Monad.Catch.finally' from "Control.Monad.Catch"
+  - t'UnliftIO.Exception.finally' from "UnliftIO.Exception"
+
+  You should understand their differences before choosing one.
   -}
-  clockWith :: c -> m a -> m (Clocked m a)
+  clockWith :: c -> m (Maybe a) -> m (Clocked m a)
 
   {-| Given an action, run it with a timeout.
 
@@ -94,6 +98,6 @@ clockTick clock d = clockDelay clock d >> clockNow clock
 
 -- | See 'clockWith' for details on what this is for.
 data Clocked m a = Clocked
-  { runClocked :: !(m (Either Tick a))
+  { runClocked :: !(m (Maybe (Either Tick a)))
   , finClocked :: !(m ())
   }

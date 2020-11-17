@@ -106,7 +106,7 @@ Library
     , containers
     , lens
     , text
-    -- for Control.Clock.System
+    -- for Control.Clock.IO
     , async
     , safe
     , stm
@@ -118,6 +118,7 @@ Library
   Exposed-Modules:
       Control.Clock
     , Control.Clock.IO
+    , Control.Clock.IO.Internal
     , Control.Arrow.Schedule
     , Control.Monad.Schedule
     , Control.Schedule.Future

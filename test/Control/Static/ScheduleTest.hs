@@ -42,6 +42,7 @@ import           Control.Static                   (ClosureApply, RepVal (..),
                                                    mkClosureTab, repClosureTab)
 import           Control.Static.TH                (mkDefStaticTab,
                                                    mkStaticsWithRefs, staticRef)
+import           Data.Maybe                       (fromJust)
 import           Data.Primitive.MutVar            (newMutVar, readMutVar)
 
 -- internal
@@ -143,7 +144,10 @@ tests = testGroup
   , testCase "smoke clockWith" $ do
     -- TODO: we should call 'fin' (see clockWith) after the test but meh
     smoke
-      (\clock -> const . runClocked <$> clockWith clock voidInput)
+      (\clock -> const . fmap fromJust . runClocked <$> clockWith
+        clock
+        (Just <$> voidInput)
+      )
       (\s0 act -> do
         mv <- newMutVar s0
         r  <- runReaderT act (asLens mv)

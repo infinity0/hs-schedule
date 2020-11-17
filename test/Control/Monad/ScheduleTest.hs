@@ -20,6 +20,7 @@ import           Control.Monad.Trans.Class        (MonadTrans (lift))
 import           Control.Monad.Trans.Maybe        (MaybeT (MaybeT, runMaybeT))
 import           Control.Monad.Trans.Reader       (ReaderT (..), ask)
 import           Control.Monad.Trans.State.Strict (StateT (..), state)
+import           Data.Maybe                       (fromJust)
 import           Data.Primitive.MutVar            (newMutVar, readMutVar)
 
 -- internal
@@ -87,7 +88,10 @@ tests = testGroup
   , testCase "smoke clockWith" $ do
     -- TODO: we should call 'fin' (see clockWith) after the test but meh
     smoke
-      (\clock -> const . runClocked <$> clockWith clock voidInput)
+      (\clock -> const . fmap fromJust . runClocked <$> clockWith
+        clock
+        (Just <$> voidInput)
+      )
       (\s0 act -> do
         mv <- newMutVar s0
         r  <- runReaderT act mv
