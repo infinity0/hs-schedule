@@ -26,6 +26,10 @@ import           Data.Rsv.RMMap  (RMMap)
 type Tick = Integer
 type TickDelta = Word64
 
+-- | Anything that keep track of the current time may implement this.
+class HasNow s where
+  getNow :: s -> Tick
+
 -- | A task that is currently or was part of a schedule.
 --
 -- @t@ is the type of input parameter for each task, i.e. the task contents.
@@ -52,6 +56,9 @@ data Schedule t = Schedule
   , running :: !(Z.Maybe (Z.Pair (Task t) t))
   }
   deriving (Show, Read, Generic, Binary, Serialise, Eq)
+
+instance HasNow (Schedule t) where
+  getNow = now
 
 dbgMapSchedule :: (a -> d) -> Schedule a -> Schedule d
 dbgMapSchedule f Schedule {..} = Schedule

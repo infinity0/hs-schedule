@@ -8,6 +8,7 @@ or "Control.Arrow.Schedule" modules instead, which re-export this module.
 module Data.Schedule
   ( Tick
   , TickDelta
+  , HasNow(..)
   , Task
   , TaskStatus(..)
   , Schedule
