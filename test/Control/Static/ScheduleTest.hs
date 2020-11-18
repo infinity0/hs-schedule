@@ -91,7 +91,7 @@ smoke
   -> TEnv (tm IO) t
   -> IO ()
 smoke mkRecv runWithNew env = do
-  clock <- newClock' (interval 1 Ms)
+  clock <- newClock 0 (interval 1 Ms)
   recv  <- mkRecv clock
   let top = 17
   (r, s) <- runWithNew newSchedule $ do

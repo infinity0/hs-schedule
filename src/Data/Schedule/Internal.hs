@@ -72,8 +72,14 @@ dbgMapSchedule f Schedule {..} = Schedule
   mapTask (Task d) = Task (RM.unsafeMapDelete d)
 
 newSchedule :: Schedule t
-newSchedule =
-  Schedule { now = 0, tasks = RM.empty, pending = mempty, running = Z.Nothing }
+newSchedule = newScheduleAt 0
+
+newScheduleAt :: Tick -> Schedule t
+newScheduleAt now = Schedule { now     = now
+                             , tasks   = RM.empty
+                             , pending = mempty
+                             , running = Z.Nothing
+                             }
 
 -- | Check the schedule that its internal invariants all hold.
 --

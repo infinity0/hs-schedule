@@ -13,6 +13,7 @@ module Data.Schedule
   , TaskStatus(..)
   , Schedule
   , newSchedule
+  , newScheduleAt
   , checkValidity
   , checkTask
   , tickNow

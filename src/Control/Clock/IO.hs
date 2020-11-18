@@ -8,7 +8,7 @@ module Control.Clock.IO
   , IOClock(..)
   , convClock
   , newClock
-  , newClock'
+  , newClockSystem
   , clockWithIO
   , clockWithIOs
   , clockTimerIO
@@ -24,7 +24,9 @@ import           Control.Concurrent        (threadDelay)
 import           Control.Concurrent.Async  (race)
 import           Control.Monad             (forever, when)
 import           Data.Time.Clock           (DiffTime, diffTimeToPicoseconds,
+                                            nominalDiffTimeToSeconds,
                                             picosecondsToDiffTime)
+import           Data.Time.Clock.POSIX     (getPOSIXTime)
 import           Data.Void                 (Void)
 import           GHC.Stack                 (HasCallStack)
 
@@ -76,8 +78,19 @@ convClock start intv c =
 newClock :: Tick -> DiffTime -> IO IOClock
 newClock start intv = convClock start intv <$> T.newClock
 
-newClock' :: DiffTime -> IO IOClock
-newClock' = newClock 0
+{- | Create a new clock with the given interval.
+
+The start tick is set non-deterministically by the runtime system, and is
+approximately the current UNIX timestamp multiplied by the interval in
+milliseconds; however this is not a guarantee and should not be relied upon.
+
+Use 'newClock' for more predictable behaviour for e.g. testing and replays.
+-}
+newClockSystem :: DiffTime -> IO IOClock
+newClockSystem intv = do
+  let intvMs = diffTimeToPicoseconds intv `div` 1000000000
+  now <- nominalDiffTimeToSeconds <$> getPOSIXTime
+  newClock (floor now * intvMs) intv
 
 instance Clock IO IOClock where
   clockNow (IOClock start r c) =
