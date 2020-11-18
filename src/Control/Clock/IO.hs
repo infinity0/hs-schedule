@@ -88,9 +88,8 @@ Use 'newClock' for more predictable behaviour for e.g. testing and replays.
 -}
 newClockSystem :: DiffTime -> IO IOClock
 newClockSystem intv = do
-  let intvMs = diffTimeToPicoseconds intv `div` 1000000000
   now <- nominalDiffTimeToSeconds <$> getPOSIXTime
-  newClock (floor now * intvMs) intv
+  newClock (floor now * 1000000000000 `div` diffTimeToPicoseconds intv) intv
 
 instance Clock IO IOClock where
   clockNow (IOClock start r c) =
